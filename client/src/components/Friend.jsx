@@ -10,9 +10,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { 
   setFriends,
-  addSentFriendRequest,
   removeSentFriendRequest,
-  addFriendRequest,
   removeFriendRequest,
   addFriend
 } from "state";
@@ -43,8 +41,6 @@ const Friend = ({
   const primaryDark = palette.primary.dark;
   const main = palette.neutral.main;
   const medium = palette.neutral.medium;
-
-  const isFriend = Array.isArray(friends) ? friends.find((friend) => friend._id === friendId) : false;
 
   const sendFriendRequest = async () => {
     try {

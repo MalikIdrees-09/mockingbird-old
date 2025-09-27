@@ -10,7 +10,6 @@ import {
   Box,
   Divider,
   Typography,
-  InputBase,
   useTheme,
   Button,
   IconButton,
@@ -30,8 +29,6 @@ import ProfanityWarningDialog from "components/ProfanityWarningDialog";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setPosts } from "state";
-import MdEditor from 'react-markdown-editor-lite';
-import 'react-markdown-editor-lite/lib/index.css';
 import { TextareaAutosize } from '@mui/material';
 
 const MyPostWidget = ({ picturePath }) => {

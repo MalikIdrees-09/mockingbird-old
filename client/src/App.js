@@ -67,7 +67,7 @@ function App() {
     }
 
     return () => { isMounted = false; };
-  }, [token, user]); // Run when token or user changes (i.e., after rehydration)
+  }, [token, user, dispatch]); // Run when token or user changes (i.e., after rehydration)
 
   return (
     <div className="app">

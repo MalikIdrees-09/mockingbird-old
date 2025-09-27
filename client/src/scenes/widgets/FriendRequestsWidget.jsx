@@ -1,8 +1,6 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import Friend from "components/Friend";
 import WidgetWrapper from "components/WidgetWrapper";
 import { API_BASE_URL } from "utils/api";
 import { setFriendRequests } from "state";
@@ -13,7 +11,6 @@ const FriendRequestsWidget = ({ userId }) => {
   const { palette } = useTheme();
   const token = useSelector((state) => state.token);
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   const getFriendRequests = async () => {
     try {
