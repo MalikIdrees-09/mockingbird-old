@@ -15,7 +15,7 @@ const SplashScreen = ({ onVideoEnd }) => {
         left: 0,
         width: "100vw",
         height: "100vh",
-        backgroundColor: "black",
+        backgroundColor: "white",
         zIndex: 9999,
         display: "flex",
         alignItems: "center",
@@ -27,9 +27,9 @@ const SplashScreen = ({ onVideoEnd }) => {
         muted
         onEnded={onVideoEnd}
         style={{
-          maxWidth: "100%",
-          maxHeight: "100%",
-          objectFit: "contain",
+          width: "30vw",
+          height: "16.875vw",
+          objectFit: "cover",
         }}
         src="/assets/splashscreen.mp4"
       />
