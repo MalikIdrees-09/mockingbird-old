@@ -31,7 +31,7 @@ const appendProphetRespect = (text) => {
 export const createPost = async (req, res) => {
   try {
     console.log("Creating post with data:", req.body);
-    console.log("Files received:", req.file);
+    console.log("Files received:", req.files);
 
     const { userId, description, mediaPath, mediaType } = req.body;
     
@@ -42,7 +42,7 @@ export const createPost = async (req, res) => {
     // Apply Prophet respect to description
     const processedDescription = appendProphetRespect(description);
 
-    if (!processedDescription && !req.file) {
+    if (!processedDescription && (!req.files || req.files.length === 0)) {
       return res.status(400).json({ message: "Post must have either description or media" });
     }
 
@@ -87,46 +87,54 @@ export const createPost = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Handle media file
-    let finalMediaPath = null;
-    let finalMediaType = null;
-    let mediaSize = null;
+    // Handle multiple media files
+    let finalMediaPaths = [];
+    let finalMediaTypes = [];
+    let finalMediaSizes = [];
     let tempFilesToClean = [];
 
-    if (req.file) {
-      const uploadedPath = path.join("/assets", req.file.filename);
-      finalMediaType = mediaType || 'image'; // Default to image if not specified
+    if (req.files && req.files.length > 0) {
+      console.log(`Processing ${req.files.length} uploaded files...`);
+      
+      for (const file of req.files) {
+        const uploadedPath = path.join("/assets", file.filename);
+        
+        // For now, assume all files are images (we can extend this later for different media types)
+        const mediaType = 'image'; // Default to image, can be extended
+        
+        if (mediaType === 'image') {
+          // Process image for compression and resizing
+          console.log(`🖼️ Processing image: ${file.filename}`);
+          const processedImage = await processPostImage(uploadedPath);
 
-      if (finalMediaType === 'image') {
-        // Process image for compression and resizing
-        console.log("🖼️ Processing uploaded image for optimization...");
-        const processedImage = await processPostImage(uploadedPath);
+          if (processedImage.processedPath !== uploadedPath) {
+            // Image was processed and optimized
+            finalMediaPaths.push(path.basename(processedImage.processedPath));
+            finalMediaTypes.push(mediaType);
+            finalMediaSizes.push(processedImage.processedSize);
 
-        if (processedImage.processedPath !== uploadedPath) {
-          // Image was processed and optimized
-          finalMediaPath = path.basename(processedImage.processedPath);
-          mediaSize = processedImage.processedSize;
+            // Mark original file for cleanup
+            tempFilesToClean.push(uploadedPath);
 
-          // Mark original file for cleanup
-          tempFilesToClean.push(uploadedPath);
-
-          console.log(`✅ Image optimized: ${processedImage.compressionRatio}% of original size`);
+            console.log(`✅ Image optimized: ${processedImage.compressionRatio}% of original size`);
+          } else {
+            // Processing failed, use original
+            finalMediaPaths.push(file.filename);
+            finalMediaTypes.push(mediaType);
+            finalMediaSizes.push(file.size);
+            console.log("⚠️ Image processing failed, using original file");
+          }
         } else {
-          // Processing failed, use original
-          finalMediaPath = req.file.filename;
-          mediaSize = req.file.size;
-          console.log("⚠️ Image processing failed, using original file");
+          // Non-image media (can be extended later)
+          finalMediaPaths.push(file.filename);
+          finalMediaTypes.push(mediaType);
+          finalMediaSizes.push(file.size);
         }
-      } else {
-        // Non-image media (audio, video) - keep as is
-        finalMediaPath = req.file.filename;
-        mediaSize = req.file.size;
-        console.log("📎 Non-image media uploaded:", req.file.filename, "Type:", finalMediaType);
       }
     } else if (mediaPath) {
-      // Handle legacy picturePath or direct media path
-      finalMediaPath = mediaPath;
-      finalMediaType = mediaType || 'image';
+      // Handle legacy single media path
+      finalMediaPaths = [mediaPath];
+      finalMediaTypes = [mediaType || 'image'];
     }
 
     const postData = {
@@ -140,17 +148,20 @@ export const createPost = async (req, res) => {
       comments: [],
     };
 
-    // Add media fields if media exists
-    if (finalMediaPath && finalMediaType) {
-      postData.mediaPath = finalMediaPath;
-      postData.mediaType = finalMediaType;
-      if (mediaSize) {
-        postData.mediaSize = mediaSize;
-      }
+    // Add media arrays if media exists
+    if (finalMediaPaths.length > 0) {
+      postData.mediaPaths = finalMediaPaths;
+      postData.mediaTypes = finalMediaTypes;
+      postData.mediaSizes = finalMediaSizes;
+      
+      // For backward compatibility, also set the first media as the primary media
+      postData.mediaPath = finalMediaPaths[0];
+      postData.mediaType = finalMediaTypes[0];
+      postData.mediaSize = finalMediaSizes[0];
       
       // For backward compatibility, also set picturePath for images
-      if (finalMediaType === 'image') {
-        postData.picturePath = finalMediaPath;
+      if (finalMediaTypes[0] === 'image') {
+        postData.picturePath = finalMediaPaths[0];
       }
     }
 
@@ -274,47 +285,85 @@ export const editPost = async (req, res) => {
       });
     }
 
-    // Handle media file
-    let finalMediaPath = post.mediaPath; // Keep existing media by default
-    let finalMediaType = post.mediaType;
-    let mediaSize = post.mediaSize;
+    // Handle multiple media files
+    let finalMediaPaths = post.mediaPaths ? [...post.mediaPaths] : []; // Keep existing media by default
+    let finalMediaTypes = post.mediaTypes ? [...post.mediaTypes] : [];
+    let finalMediaSizes = post.mediaSizes ? [...post.mediaSizes] : [];
     let tempFilesToClean = [];
 
-    if (req.file) {
-      // New media file uploaded
-      const uploadedPath = path.join("/assets", req.file.filename);
-      finalMediaType = mediaType || 'image';
+    if (req.files && req.files.length > 0) {
+      // New media files uploaded - replace all existing media
+      console.log(`Processing ${req.files.length} new uploaded files for edit...`);
+      
+      finalMediaPaths = [];
+      finalMediaTypes = [];
+      finalMediaSizes = [];
+      
+      for (const file of req.files) {
+        const uploadedPath = path.join("/assets", file.filename);
+        
+        // For now, assume all files are images (we can extend this later for different media types)
+        const mediaType = 'image'; // Default to image, can be extended
+        
+        if (mediaType === 'image') {
+          // Process image for compression and resizing
+          console.log(`🖼️ Processing image: ${file.filename}`);
+          const processedImage = await processPostImage(uploadedPath);
 
-      if (finalMediaType === 'image') {
-        const processedImage = await processPostImage(uploadedPath);
+          if (processedImage.processedPath !== uploadedPath) {
+            // Image was processed and optimized
+            finalMediaPaths.push(path.basename(processedImage.processedPath));
+            finalMediaTypes.push(mediaType);
+            finalMediaSizes.push(processedImage.processedSize);
 
-        if (processedImage.processedPath !== uploadedPath) {
-          finalMediaPath = path.basename(processedImage.processedPath);
-          mediaSize = processedImage.processedSize;
-          
-          // Mark original file for cleanup
-          tempFilesToClean.push(uploadedPath);
+            // Mark original file for cleanup
+            tempFilesToClean.push(uploadedPath);
+
+            console.log(`✅ Image optimized: ${processedImage.compressionRatio}% of original size`);
+          } else {
+            // Processing failed, use original
+            finalMediaPaths.push(file.filename);
+            finalMediaTypes.push(mediaType);
+            finalMediaSizes.push(file.size);
+            console.log("⚠️ Image processing failed, using original file");
+          }
         } else {
-          finalMediaPath = req.file.filename;
-          mediaSize = req.file.size;
+          // Non-image media (can be extended later)
+          finalMediaPaths.push(file.filename);
+          finalMediaTypes.push(mediaType);
+          finalMediaSizes.push(file.size);
         }
-      } else {
-        finalMediaPath = req.file.filename;
-        mediaSize = req.file.size;
       }
     } else if (mediaPath === "null" || mediaPath === undefined) {
-      // Explicitly removing media (mediaPath is "null" from FormData) or no mediaPath field sent
-      finalMediaPath = null;
-      finalMediaType = null;
-      mediaSize = null;
+      // Explicitly removing all media (mediaPath is "null" from FormData) or no mediaPath field sent
+      finalMediaPaths = [];
+      finalMediaTypes = [];
+      finalMediaSizes = [];
     }
 
     // Update post
     post.description = processedDescription || "";
-    post.mediaPath = finalMediaPath;
-    post.mediaType = finalMediaType;
-    post.mediaSize = mediaSize;
+    post.mediaPaths = finalMediaPaths;
+    post.mediaTypes = finalMediaTypes;
+    post.mediaSizes = finalMediaSizes;
     post.editedAt = new Date();
+
+    // For backward compatibility, also update single media fields
+    if (finalMediaPaths.length > 0) {
+      post.mediaPath = finalMediaPaths[0];
+      post.mediaType = finalMediaTypes[0];
+      post.mediaSize = finalMediaSizes[0];
+      
+      // For backward compatibility, also set picturePath for images
+      if (finalMediaTypes[0] === 'image') {
+        post.picturePath = finalMediaPaths[0];
+      }
+    } else {
+      post.mediaPath = null;
+      post.mediaType = null;
+      post.mediaSize = null;
+      post.picturePath = null;
+    }
 
     await post.save();
 

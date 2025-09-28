@@ -54,7 +54,19 @@ router.get("/:postId", verifyToken, getPostById);
 router.get("/:postId/public", getPostById); // Public route for viewing posts without auth
 router.get("/:userId/posts", verifyToken, getUserPosts);
 
-// Create optional upload middleware
+// Create optional upload middleware for multiple files
+const uploadMultipleOptional = (req, res, next) => {
+  upload.array("media", 10)(req, res, (err) => { // Allow up to 10 files
+    // If there's an error and it's not about missing file, handle it
+    if (err && err.code !== 'LIMIT_UNEXPECTED_FILE') {
+      return next(err);
+    }
+    // Continue even if no files were uploaded
+    next();
+  });
+};
+
+// Create optional upload middleware for single file (backward compatibility)
 const uploadOptional = (req, res, next) => {
   upload.single("media")(req, res, (err) => {
     // If there's an error and it's not about missing file, handle it
@@ -66,9 +78,12 @@ const uploadOptional = (req, res, next) => {
   });
 };
 
+/* CREATE */
+router.post("/", verifyToken, uploadMultipleOptional, createPost);
+
 /* UPDATE */
 router.patch("/:id/like", verifyToken, likePost);
-router.patch("/:id", verifyToken, uploadOptional, editPost);
+router.patch("/:id", verifyToken, uploadMultipleOptional, editPost);
 router.delete("/:id", verifyToken, deletePost);
 router.post("/:id/comment", verifyToken, upload.single("media"), addComment);
 router.patch("/:id/comment/:commentId", verifyToken, editComment);

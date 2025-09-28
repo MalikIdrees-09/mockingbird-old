@@ -55,6 +55,9 @@ const PostWidget = ({
   mediaPath,
   mediaType,
   mediaSize,
+  mediaPaths,
+  mediaTypes,
+  mediaSizes,
   isDetailView = false,
   isAdmin = false,
   pinned = false,
@@ -129,9 +132,59 @@ const PostWidget = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Function to render media based on type
+  // Function to render media based on type - supports both single and multiple media
   const renderMedia = () => {
-    // Only use mediaPath, don't fallback to picturePath for posts without attached media
+    // Check if we have multiple media (new format)
+    if (mediaPaths && mediaPaths.length > 0) {
+      return (
+        <Box sx={{ mt: "0.75rem" }}>
+          {mediaPaths.length === 1 ? (
+            // Single image - display full width
+            <img
+              width="100%"
+              height="auto"
+              alt="post"
+              src={`${API_BASE_URL}/assets/${mediaPaths[0]}`}
+              style={{
+                borderRadius: "0.75rem",
+              }}
+            />
+          ) : (
+            // Multiple images - display in grid
+            <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+              {mediaPaths.map((mediaPath, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    position: "relative",
+                    borderRadius: "0.75rem",
+                    overflow: "hidden",
+                    aspectRatio: "1", // Square aspect ratio for grid
+                    cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    // Could implement lightbox/modal for full-size viewing
+                    console.log("Clicked image:", mediaPath);
+                  }}
+                >
+                  <img
+                    src={`${API_BASE_URL}/assets/${mediaPath}`}
+                    alt={`post image ${index + 1}`}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
+        </Box>
+      );
+    }
+
+    // Fallback to single media (old format for backward compatibility)
     const currentMediaPath = mediaPath;
     const currentMediaType = mediaType;
     
@@ -412,7 +465,7 @@ const PostWidget = ({
   };
 
   const submitEditedPost = async () => {
-    if (!editingPostText.trim() && !editingPostMediaFile && !mediaPath && !removeExistingMedia) return;
+    if (!editingPostText.trim() && !editingPostMediaFile && !(mediaPaths && mediaPaths.length > 0) && !mediaPath && !removeExistingMedia) return;
 
     setIsSubmittingPostEdit(true);
     try {
@@ -420,16 +473,14 @@ const PostWidget = ({
       formData.append('userId', loggedInUserId);
       formData.append('description', editingPostText.trim());
 
-      if (editingPostMediaFile) {
+      // Handle multiple media files
+      if (editingPostMediaFile && Array.isArray(editingPostMediaFile)) {
+        editingPostMediaFile.forEach((file, index) => {
+          formData.append('media', file);
+        });
+      } else if (editingPostMediaFile) {
+        // Single file (backward compatibility)
         formData.append('media', editingPostMediaFile);
-        // Determine media type
-        if (editingPostMediaFile.type.startsWith('image/')) {
-          formData.append('mediaType', 'image');
-        } else if (editingPostMediaFile.type.startsWith('audio/')) {
-          formData.append('mediaType', 'audio');
-        } else if (editingPostMediaFile.type.startsWith('video/') || editingPostMediaFile.type === 'image/gif') {
-          formData.append('mediaType', 'clip');
-        }
       } else if (removeExistingMedia) {
         // No media selected and remove existing media flag is set
         formData.append('mediaPath', 'null');
@@ -632,12 +683,68 @@ const PostWidget = ({
             )}
 
             {/* Current media display */}
-            {mediaPath && !editingPostMediaFile && !removeExistingMedia && (
+            {(mediaPaths && mediaPaths.length > 0) || mediaPath ? (
               <Box sx={{ mb: 2, position: "relative" }}>
                 <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
                   Current media:
                 </Typography>
-                {renderMedia()}
+                
+                {/* Display multiple images or single image */}
+                {mediaPaths && mediaPaths.length > 0 ? (
+                  mediaPaths.length === 1 ? (
+                    // Single image - display full width
+                    <img
+                      width="100%"
+                      height="auto"
+                      alt="current post media"
+                      src={`${API_BASE_URL}/assets/${mediaPaths[0]}`}
+                      style={{
+                        borderRadius: "0.75rem",
+                        marginBottom: "8px"
+                      }}
+                    />
+                  ) : (
+                    // Multiple images - display in grid
+                    <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", mb: 1 }}>
+                      {mediaPaths.map((mediaPath, index) => (
+                        <Box
+                          key={index}
+                          sx={{
+                            position: "relative",
+                            borderRadius: "0.75rem",
+                            overflow: "hidden",
+                            aspectRatio: "1",
+                          }}
+                        >
+                          <img
+                            src={`${API_BASE_URL}/assets/${mediaPath}`}
+                            alt={`current media ${index + 1}`}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        </Box>
+                      ))}
+                    </Box>
+                  )
+                ) : (
+                  // Fallback to single media display
+                  mediaPath && (
+                    <img
+                      width="100%"
+                      height="auto"
+                      alt="current post media"
+                      src={`${API_BASE_URL}/assets/${mediaPath}`}
+                      style={{
+                        borderRadius: "0.75rem",
+                        marginBottom: "8px"
+                      }}
+                    />
+                  )
+                )}
+                
                 <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
                   <Button
                     variant="outlined"
@@ -646,16 +753,14 @@ const PostWidget = ({
                     onClick={() => {
                       // Immediately hide the current media and set flag for saving
                       setRemoveExistingMedia(true);
-                      setEditingPostMediaFile(null);
-                      setEditingPostMediaPreview(null);
                     }}
                     disabled={isSubmittingPostEdit}
                   >
-                    Remove Media
+                    Remove All Media
                   </Button>
                 </Box>
               </Box>
-            )}
+            ) : null}
 
             {/* Show message when media will be removed */}
             {removeExistingMedia && !editingPostMediaFile && (
@@ -671,25 +776,31 @@ const PostWidget = ({
               <input
                 type="file"
                 id={`edit-media-input-${postId}`}
-                accept="image/*,audio/*,video/webm,image/gif"
+                accept="image/*"
+                multiple
                 onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    // Validate file size (10MB limit)
-                    if (file.size > 10 * 1024 * 1024) {
-                      alert("File size must be less than 10MB");
-                      return;
-                    }
+                  const files = Array.from(e.target.files);
+                  if (files && files.length > 0) {
+                    // Filter out files that are too large (10MB limit per file)
+                    const validFiles = files.filter(file => {
+                      if (file.size > 10 * 1024 * 1024) {
+                        alert(`File "${file.name}" is too large. Maximum size is 10MB per file.`);
+                        return false;
+                      }
+                      return true;
+                    });
 
-                    setEditingPostMediaFile(file);
+                    if (validFiles.length > 0) {
+                      // Limit to 10 files total
+                      const limitedFiles = validFiles.slice(0, 10);
+                      if (validFiles.length > 10) {
+                        alert("Maximum 10 images allowed per post. Only the first 10 files will be used.");
+                      }
 
-                    // Create preview
-                    if (file.type.startsWith('image/')) {
-                      const reader = new FileReader();
-                      reader.onload = (e) => setEditingPostMediaPreview(e.target.result);
-                      reader.readAsDataURL(file);
-                    } else {
-                      setEditingPostMediaPreview(file.name);
+                      // For now, just store the files (we'll handle upload in submitEditedPost)
+                      // This is a simplified approach - in production you'd want proper preview
+                      setEditingPostMediaFile(limitedFiles);
+                      setEditingPostMediaPreview(`Selected ${limitedFiles.length} image${limitedFiles.length > 1 ? 's' : ''}`);
                     }
                   }
                 }}
@@ -703,7 +814,7 @@ const PostWidget = ({
                   startIcon={<AttachFile />}
                   disabled={isSubmittingPostEdit}
                 >
-                  {editingPostMediaFile ? "Change Media" : "Add Media"}
+                  {editingPostMediaFile ? `Change Images (${Array.isArray(editingPostMediaFile) ? editingPostMediaFile.length : 1})` : "Add Images"}
                 </Button>
               </label>
               
@@ -718,7 +829,7 @@ const PostWidget = ({
                   }}
                   disabled={isSubmittingPostEdit}
                 >
-                  Remove Media
+                  Remove Images
                 </Button>
               )}
             </Box>
@@ -729,7 +840,7 @@ const PostWidget = ({
                 variant="contained"
                 color="primary"
                 onClick={submitEditedPost}
-                disabled={(!editingPostText.trim() && !editingPostMediaFile && !mediaPath) || isSubmittingPostEdit}
+                disabled={(!editingPostText.trim() && !editingPostMediaFile && !(mediaPaths && mediaPaths.length > 0) && !mediaPath) || isSubmittingPostEdit}
                 startIcon={isSubmittingPostEdit ? undefined : <Check />}
               >
                 {isSubmittingPostEdit ? "Saving..." : "Save Changes"}

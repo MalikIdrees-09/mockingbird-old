@@ -75,6 +75,9 @@ const PostsWidget = ({ userId, isProfile = false }) => {
           mediaPath,
           mediaType,
           mediaSize,
+          mediaPaths,
+          mediaTypes,
+          mediaSizes,
           pinned,
         }) => (
           <PostWidget
@@ -92,6 +95,9 @@ const PostsWidget = ({ userId, isProfile = false }) => {
             mediaPath={mediaPath}
             mediaType={mediaType}
             mediaSize={mediaSize}
+            mediaPaths={mediaPaths}
+            mediaTypes={mediaTypes}
+            mediaSizes={mediaSizes}
             isAdmin={userId?.isAdmin || false}
             pinned={pinned}
             showAddFriend={isProfile}

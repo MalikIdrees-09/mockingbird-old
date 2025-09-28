@@ -18,15 +18,20 @@ const postSchema = mongoose.Schema(
     description: String,
     picturePath: String, // Legacy field for backward compatibility
     userPicturePath: String,
-    // New media fields
-    mediaPath: String, // Path to the media file
-    mediaType: {
+    // New media fields - Arrays for multiple media support
+    mediaPaths: [{
+      type: String,
+      default: []
+    }],
+    mediaTypes: [{
       type: String,
       enum: ['image', 'audio', 'clip', null],
-      default: null,
-    },
-    mediaDuration: Number, // Duration in seconds for video/audio
-    mediaSize: Number, // File size in bytes
+      default: []
+    }],
+    mediaSizes: [{
+      type: Number,
+      default: []
+    }],
     likes: {
       type: Map,
       of: Boolean,

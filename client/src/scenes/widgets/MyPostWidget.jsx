@@ -35,8 +35,7 @@ import { API_BASE_URL } from "../../utils/api";
 
 const MyPostWidget = ({ picturePath }) => {
   const dispatch = useDispatch();
-  const [mediaType, setMediaType] = useState(null); // 'image', 'video', 'audio', 'clip'
-  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaFiles, setMediaFiles] = useState([]); // Array of media files
   const [post, setPost] = useState("");
   const [anchorEl, setAnchorEl] = useState(null); // For mobile menu
   const [profanityWarning, setProfanityWarning] = useState({ open: false, message: "", details: "" });
@@ -68,14 +67,14 @@ const MyPostWidget = ({ picturePath }) => {
     };
   }, []);
 
-  // Clean up blob URLs when mediaFile changes
+  // Clean up blob URLs when mediaFiles changes
   useEffect(() => {
     // Clean up previous blob URLs
     blobUrlsRef.current.forEach(url => {
       URL.revokeObjectURL(url);
     });
     blobUrlsRef.current = [];
-  }, [mediaFile]);
+  }, [mediaFiles]);
 
   // Media type configurations
   const mediaConfigs = {
@@ -119,11 +118,10 @@ const MyPostWidget = ({ picturePath }) => {
       formData.append("userId", _id);
       formData.append("description", post);
       
-      if (mediaFile) {
-        formData.append("media", mediaFile);
-        formData.append("mediaPath", mediaFile.name);
-        formData.append("mediaType", mediaType);
-      }
+      // Add multiple media files
+      mediaFiles.forEach((file, index) => {
+        formData.append("media", file);
+      });
 
       const response = await fetch(`${API_BASE_URL}/posts`, {
         method: "POST",
@@ -136,8 +134,7 @@ const MyPostWidget = ({ picturePath }) => {
         dispatch(setPosts({ posts }));
         
         // Reset form completely
-        setMediaFile(null);
-        setMediaType(null);
+        setMediaFiles([]);
         setPost("");
         setAnchorEl(null); // Close mobile menu if open
         setProfanityWarning({ open: false, message: "", details: "" }); // Reset profanity warning
@@ -162,26 +159,21 @@ const MyPostWidget = ({ picturePath }) => {
     }
   };
 
-  const handleMediaSelect = (type) => {
-    if (mediaType === type) {
-      // Toggle off if same type clicked
-      setMediaType(null);
-      setMediaFile(null);
-    } else {
-      setMediaType(type);
-      setMediaFile(null);
-    }
-  };
-
   const handleFileUpload = (acceptedFiles) => {
     if (acceptedFiles && acceptedFiles.length > 0) {
-      setMediaFile(acceptedFiles[0]);
+      // Add new files to existing media files (up to 10 total)
+      const newFiles = [...mediaFiles, ...acceptedFiles].slice(0, 10);
+      setMediaFiles(newFiles);
     }
   };
 
-  const clearMedia = () => {
-    setMediaFile(null);
-    setMediaType(null);
+  const removeMediaFile = (index) => {
+    const newFiles = mediaFiles.filter((_, i) => i !== index);
+    setMediaFiles(newFiles);
+  };
+
+  const clearAllMedia = () => {
+    setMediaFiles([]);
   };
 
   const getFileSize = (bytes) => {
@@ -198,11 +190,6 @@ const MyPostWidget = ({ picturePath }) => {
 
   const handleMobileMenuClose = () => {
     setAnchorEl(null);
-  };
-
-  const handleMobileMediaSelect = (type) => {
-    handleMediaSelect(type);
-    handleMobileMenuClose();
   };
 
   return (
@@ -259,7 +246,7 @@ const MyPostWidget = ({ picturePath }) => {
       </FlexBetween>
       
       {/* Media Upload Section */}
-      {mediaType && (
+      {mediaFiles.length > 0 && (
         <Box
           border={`1px solid ${medium}`}
           borderRadius="12px"
@@ -269,111 +256,121 @@ const MyPostWidget = ({ picturePath }) => {
         >
           <FlexBetween mb="0.5rem">
             <Chip
-              icon={mediaConfigs[mediaType].icon}
-              label={mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}
+              icon={<ImageOutlined />}
+              label={`${mediaFiles.length} Image${mediaFiles.length > 1 ? 's' : ''} Selected`}
               color="primary"
               size="small"
-              sx={{ backgroundColor: mediaConfigs[mediaType].color, color: "white" }}
+              sx={{ backgroundColor: palette.primary.main, color: "white" }}
             />
-            <IconButton onClick={clearMedia} size="small">
+            <IconButton onClick={clearAllMedia} size="small">
               <Close />
             </IconButton>
           </FlexBetween>
           
-          <Dropzone
-            accept={mediaConfigs[mediaType].accept}
-            multiple={false}
-            onDrop={handleFileUpload}
-            maxSize={10 * 1024 * 1024} // 10MB for all media types
-          >
-            {({ getRootProps, getInputProps, isDragActive }) => (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {mediaFiles.map((file, index) => (
               <Box
-                {...getRootProps()}
-                border={`2px dashed ${mediaConfigs[mediaType].color}`}
-                borderRadius="8px"
-                p="2rem"
-                textAlign="center"
+                key={index}
                 sx={{
-                  cursor: "pointer",
-                  backgroundColor: isDragActive ? palette.primary.light + "20" : "transparent",
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    backgroundColor: palette.primary.light + "10",
-                    borderColor: palette.primary.dark,
-                  }
+                  position: "relative",
+                  border: `1px solid ${palette.neutral.light}`,
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  width: "120px",
+                  height: "90px"
                 }}
               >
-                <input {...getInputProps()} />
-                {!mediaFile ? (
-                  <Box>
-                    {mediaConfigs[mediaType].icon}
-                    <Typography variant="body1" mt={1}>
-                      {isDragActive ? `Drop your ${mediaType} here` : mediaConfigs[mediaType].label}
+                <Box
+                  component="img"
+                  src={createBlobUrl(file)}
+                  alt={`Preview ${index + 1}`}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover"
+                  }}
+                />
+                <IconButton
+                  size="small"
+                  onClick={() => removeMediaFile(index)}
+                  sx={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    backgroundColor: "rgba(0,0,0,0.6)",
+                    color: "white",
+                    "&:hover": {
+                      backgroundColor: "rgba(0,0,0,0.8)"
+                    },
+                    width: 24,
+                    height: 24
+                  }}
+                >
+                  <Close fontSize="small" />
+                </IconButton>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    position: "absolute",
+                    bottom: 4,
+                    left: 4,
+                    backgroundColor: "rgba(0,0,0,0.6)",
+                    color: "white",
+                    padding: "2px 4px",
+                    borderRadius: "4px",
+                    fontSize: "0.6rem"
+                  }}
+                >
+                  {getFileSize(file.size)}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+
+          {/* Add more images button */}
+          {mediaFiles.length < 10 && (
+            <Box mt={2}>
+              <Dropzone
+                accept={{
+                  'image/jpeg': ['.jpg', '.jpeg'],
+                  'image/png': ['.png'],
+                  'image/gif': ['.gif'],
+                  'image/webp': ['.webp']
+                }}
+                multiple={true}
+                onDrop={handleFileUpload}
+                maxSize={10 * 1024 * 1024} // 10MB per file
+              >
+                {({ getRootProps, getInputProps, isDragActive }) => (
+                  <Box
+                    {...getRootProps()}
+                    border={`2px dashed ${palette.primary.main}`}
+                    borderRadius="8px"
+                    p="1rem"
+                    textAlign="center"
+                    sx={{
+                      cursor: "pointer",
+                      backgroundColor: isDragActive ? palette.primary.light + "20" : "transparent",
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        backgroundColor: palette.primary.light + "10",
+                        borderColor: palette.primary.dark,
+                      }
+                    }}
+                  >
+                    <input {...getInputProps()} />
+                    <ImageOutlined sx={{ color: palette.primary.main, mb: 1 }} />
+                    <Typography variant="body2">
+                      {isDragActive ? "Drop images here" : "Add more images"}
                     </Typography>
                     <Typography variant="caption" color="textSecondary">
-                      Max size: 10MB
+                      Max 10 images, 10MB each
                     </Typography>
                   </Box>
-                ) : (
-                  <Stack spacing={1} alignItems="center">
-                    <FlexBetween width="100%">
-                      <Box display="flex" alignItems="center" gap={1}>
-                        {mediaConfigs[mediaType].icon}
-                        <Typography variant="body2" fontWeight="500">
-                          {mediaFile.name}
-                        </Typography>
-                      </Box>
-                      <Box display="flex" alignItems="center" gap={0.5}>
-                        <Tooltip title="Change file">
-                          <IconButton size="small" sx={{ color: palette.primary.main }}>
-                            <EditOutlined fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Remove media">
-                          <IconButton size="small" onClick={clearMedia} sx={{ color: palette.error.main }}>
-                            <Close fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </FlexBetween>
-                    <Typography variant="caption" color="textSecondary">
-                      {getFileSize(mediaFile.size)}
-                    </Typography>
-                    
-                    {/* Preview for images */}
-                    {mediaType === 'image' && (
-                      <Box
-                        component="img"
-                        src={createBlobUrl(mediaFile)}
-                        alt="Preview"
-                        sx={{
-                          maxWidth: "200px",
-                          maxHeight: "150px",
-                          borderRadius: "8px",
-                          mt: 1
-                        }}
-                      />
-                    )}
-                    
-                    {/* Preview for clips */}
-                    {mediaType === 'clip' && (
-                      <Box
-                        component="video"
-                        src={createBlobUrl(mediaFile)}
-                        controls
-                        sx={{
-                          maxWidth: "200px",
-                          maxHeight: "150px",
-                          borderRadius: "8px",
-                          mt: 1
-                        }}
-                      />
-                    )}
-                  </Stack>
                 )}
-              </Box>
-            )}
-          </Dropzone>
+              </Dropzone>
+            </Box>
+          )}
         </Box>
       )}
 
@@ -383,23 +380,35 @@ const MyPostWidget = ({ picturePath }) => {
         {/* Image Button */}
         <FlexBetween 
           gap="0.25rem" 
-          onClick={() => handleMediaSelect('image')}
+          onClick={() => {
+            // Trigger file input for image selection
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                handleFileUpload(Array.from(e.target.files));
+              }
+            };
+            input.click();
+          }}
           sx={{ 
             cursor: "pointer",
             padding: "0.5rem",
             borderRadius: "8px",
-            backgroundColor: mediaType === 'image' ? palette.primary.light + "20" : "transparent",
+            backgroundColor: mediaFiles.length > 0 ? palette.primary.light + "20" : "transparent",
             "&:hover": { backgroundColor: palette.primary.light + "10" }
           }}
         >
           <ImageOutlined sx={{ 
-            color: mediaType === 'image' ? palette.primary.main : mediumMain 
+            color: mediaFiles.length > 0 ? palette.primary.main : mediumMain 
           }} />
           <Typography
-            color={mediaType === 'image' ? palette.primary.main : mediumMain}
-            sx={{ fontWeight: mediaType === 'image' ? 600 : 400 }}
+            color={mediaFiles.length > 0 ? palette.primary.main : mediumMain}
+            sx={{ fontWeight: mediaFiles.length > 0 ? 600 : 400 }}
           >
-            Image
+            Image {mediaFiles.length > 0 && `(${mediaFiles.length})`}
           </Typography>
         </FlexBetween>
 
@@ -491,7 +500,7 @@ const MyPostWidget = ({ picturePath }) => {
         )}
 
         <Button
-          disabled={!post && !mediaFile}
+          disabled={!post && mediaFiles.length === 0}
           onClick={handlePost}
           sx={{
             m: "2rem 0",
