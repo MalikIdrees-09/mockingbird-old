@@ -27,8 +27,6 @@ const HomePage = () => {
           <UserWidget userId={_id} picturePath={picturePath} allowProfileEdits={false} />
           <Box m={isMobile ? "1rem 0" : "2rem 0"} />
           <FriendRequestsWidget userId={_id} />
-          <Box m={isMobile ? "1rem 0" : "2rem 0"} />
-          <FriendListWidget userId={_id} />
         </Box>
         <Box
           flexBasis={isNonMobileScreens ? "42%" : undefined}
