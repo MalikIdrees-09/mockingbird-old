@@ -2,7 +2,8 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import User from "../models/User.js";
 
-dotenv.config();
+// Load environment variables from parent directory
+dotenv.config({ path: "../.env" });
 
 const wipeNonAdminUsers = async () => {
   try {
