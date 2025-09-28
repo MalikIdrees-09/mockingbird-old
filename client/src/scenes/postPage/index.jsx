@@ -4,6 +4,7 @@ import { Box, Typography, CircularProgress } from "@mui/material";
 import { useSelector } from "react-redux";
 import Navbar from "scenes/navbar";
 import PostWidget from "scenes/widgets/PostWidget";
+import { API_BASE_URL } from "../../utils/api";
 
 const PostPage = () => {
   const { postId } = useParams();
@@ -11,11 +12,17 @@ const PostPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const token = useSelector((state) => state.token);
+  
+  // Listen for post updates in Redux store
+  const updatedPost = useSelector((state) => {
+    const posts = state.posts || [];
+    return posts.find(p => p._id === postId);
+  });
 
   useEffect(() => {
     const getPost = async () => {
       try {
-        const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/posts/${postId}`, {
+        const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -33,6 +40,13 @@ const PostPage = () => {
       getPost();
     }
   }, [postId, token]);
+
+  // Update local post state when Redux store post is updated
+  useEffect(() => {
+    if (updatedPost && post) {
+      setPost(updatedPost);
+    }
+  }, [updatedPost, post]);
 
   if (loading) {
     return (

@@ -27,12 +27,12 @@ router.get("/:id/friends", verifyToken, getUserFriends);
 router.get("/:id/friend-requests", verifyToken, getUserFriendRequests);
 
 /* UPDATE */
+router.patch("/:id/bio", verifyToken, updateBio);
+router.patch("/:id", verifyToken, updateProfile);
 router.patch("/:id/:friendId", verifyToken, addRemoveFriend);
 router.post("/:id/friend-request/:friendId", verifyToken, sendFriendRequest);
 router.post("/:id/accept-friend/:friendId", verifyToken, acceptFriendRequest);
 router.post("/:id/reject-friend/:friendId", verifyToken, rejectFriendRequest);
 router.delete("/:id/cancel-friend/:friendId", verifyToken, cancelFriendRequest);
-router.patch("/:id/bio", verifyToken, updateBio);
-router.patch("/:id", verifyToken, updateProfile);
 
 export default router;

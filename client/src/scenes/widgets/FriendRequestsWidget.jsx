@@ -2,6 +2,7 @@ import { Box, Typography, useTheme } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import WidgetWrapper from "components/WidgetWrapper";
+import Friend from "components/Friend";
 import { API_BASE_URL } from "utils/api";
 import { setFriendRequests } from "state";
 

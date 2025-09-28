@@ -372,12 +372,6 @@ export const updateBio = async (req, res) => {
     // Return updated user data
     const updatedUser = await User.findById(id).select("-password");
     res.status(200).json(updatedUser);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-/* UPDATE COMPLETE PROFILE */
 export const updateProfile = async (req, res) => {
   try {
     const { id } = req.params;
@@ -389,21 +383,24 @@ export const updateProfile = async (req, res) => {
       return res.status(403).json({ message: "You can only update your own profile" });
     }
 
-    // Validate required fields
-    if (!firstName || !lastName) {
-      return res.status(400).json({ message: "First name and last name are required" });
-    }
-
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Update user's profile information
-    user.firstName = firstName.trim();
-    user.lastName = lastName.trim();
-    user.location = location ? location.trim() : "";
-    user.bio = bio ? bio.trim() : "";
+    // Update user's profile information (only provided fields)
+    if (firstName !== undefined) {
+      user.firstName = firstName.trim();
+    }
+    if (lastName !== undefined) {
+      user.lastName = lastName.trim();
+    }
+    if (location !== undefined) {
+      user.location = location ? location.trim() : "";
+    }
+    if (bio !== undefined) {
+      user.bio = bio ? bio.trim() : "";
+    }
 
     await user.save();
 
@@ -412,6 +409,13 @@ export const updateProfile = async (req, res) => {
     res.status(200).json(updatedUser);
   } catch (err) {
     console.error("Error updating profile:", err);
+
+    // Handle Mongoose validation errors
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({ message: messages.join(', ') });
+    }
+
     res.status(500).json({ message: err.message });
   }
 };

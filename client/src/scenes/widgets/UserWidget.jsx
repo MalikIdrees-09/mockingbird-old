@@ -16,8 +16,9 @@ import AdminBadge from "components/AdminBadge";
 import { useSelector } from "react-redux";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../../utils/api";
 
-const UserWidget = ({ userId, picturePath }) => {
+const UserWidget = ({ userId, picturePath, allowProfileEdits = true }) => {
   const [user, setUser] = useState(null);
   const [profilePictureDialog, setProfilePictureDialog] = useState(false);
   const [bioEditDialog, setBioEditDialog] = useState(false);
@@ -34,7 +35,7 @@ const UserWidget = ({ userId, picturePath }) => {
   const isOwnProfile = currentUser && currentUser._id === userId;
 
   const getUser = async () => {
-    const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/users/${userId}`, {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -70,7 +71,7 @@ const UserWidget = ({ userId, picturePath }) => {
         <FlexBetween gap="1rem">
           <Box position="relative">
             <UserImage image={picturePath} name={`${firstName || 'Unknown'} ${lastName || 'User'}`} />
-            {isOwnProfile && (
+            {allowProfileEdits && isOwnProfile && (
               <Tooltip title="Change profile picture">
                 <IconButton
                   onClick={() => setProfilePictureDialog(true)}
@@ -120,7 +121,7 @@ const UserWidget = ({ userId, picturePath }) => {
         <Box display="flex" alignItems="center" gap="1rem" mb="0.5rem">
           <LocationOnOutlined fontSize="large" sx={{ color: main }} />
           <Typography color={medium}>{location}</Typography>
-          {isOwnProfile && (
+          {allowProfileEdits && isOwnProfile && (
             <Tooltip title="Edit location">
               <IconButton
                 onClick={() => setLocationEditDialog(true)}
@@ -149,7 +150,7 @@ const UserWidget = ({ userId, picturePath }) => {
           }}>
             {bio || "No bio yet"}
           </Typography>
-          {isOwnProfile && (
+          {allowProfileEdits && isOwnProfile && (
             <Tooltip title="Edit bio">
               <IconButton
                 onClick={() => setBioEditDialog(true)}

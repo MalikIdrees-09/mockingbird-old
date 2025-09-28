@@ -1,7 +1,8 @@
 import { Box, Avatar } from "@mui/material";
+import { API_BASE_URL } from "../utils/api";
 
 const UserImage = ({ image, size = "60px", name = "" }) => {
-  const imageUrl = image ? `https://mockingbird-backend-453975176199.us-central1.run.app/assets/${image}` : null;
+  const imageUrl = image ? `${API_BASE_URL}/assets/${image}` : null;
   
   // If no image, show initials
   if (!imageUrl) {

@@ -19,6 +19,30 @@ const FriendListWidget = ({ userId }) => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
 
+  // Handle friend action updates
+  const handleFriendAction = (action, friendId) => {
+    // Update search results if the action affects a user in search results
+    if (searchResults && searchResults.users) {
+      setSearchResults(prev => ({
+        ...prev,
+        users: prev.users.map(user => {
+          if (user._id === friendId) {
+            let newFriendStatus = 'none';
+            if (action === 'request_sent') {
+              newFriendStatus = 'request_sent';
+            } else if (action === 'accepted') {
+              newFriendStatus = 'friends';
+            } else if (action === 'cancelled' || action === 'rejected') {
+              newFriendStatus = 'none';
+            }
+            return { ...user, friendStatus: newFriendStatus };
+          }
+          return user;
+        })
+      }));
+    }
+  };
+
   // Helper function to determine friend status
   const getFriendStatus = (userId) => {
     if (currentUser.friends?.includes(userId)) {
@@ -217,6 +241,7 @@ const FriendListWidget = ({ userId }) => {
                       subtitle={user.bio ? (user.bio.length > 100 ? `${user.bio.substring(0, 100)}...` : user.bio) : "No bio yet"}
                       userPicturePath={user.picturePath}
                       friendStatus={getFriendStatus(user._id)}
+                      onFriendAction={handleFriendAction}
                     />
                   ))}
                 </Box>

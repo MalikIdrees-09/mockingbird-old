@@ -25,7 +25,15 @@ function App() {
   const user = useSelector((state) => state.user);
   const isAdmin = user && (user.isAdmin || user._id === "idrees");
   const dispatch = useDispatch();
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    // Skip splash screen if flag is set (e.g., after comment actions)
+    const skipSplash = localStorage.getItem('skipSplash') === 'true';
+    if (skipSplash) {
+      localStorage.removeItem('skipSplash');
+      return false;
+    }
+    return true;
+  });
 
   // Validate token on app startup (only after persisted data is loaded)
   useEffect(() => {

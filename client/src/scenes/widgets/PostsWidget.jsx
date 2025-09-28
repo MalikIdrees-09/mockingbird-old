@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setPosts } from "state";
 import PostWidget from "./PostWidget";
+import { API_BASE_URL } from "../../utils/api";
 
 const PostsWidget = ({ userId, isProfile = false }) => {
   const dispatch = useDispatch();
@@ -10,7 +11,7 @@ const PostsWidget = ({ userId, isProfile = false }) => {
 
   const getPosts = async () => {
     try {
-      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/posts", {
+      const response = await fetch(`${API_BASE_URL}/posts`, {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -30,7 +31,7 @@ const PostsWidget = ({ userId, isProfile = false }) => {
   const getUserPosts = async () => {
     try {
       const response = await fetch(
-        `https://mockingbird-backend-453975176199.us-central1.run.app/posts/${userId}/posts`,
+        `${API_BASE_URL}/posts/${userId}/posts`,
         {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },

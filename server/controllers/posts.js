@@ -286,7 +286,6 @@ export const editPost = async (req, res) => {
       finalMediaType = mediaType || 'image';
 
       if (finalMediaType === 'image') {
-        console.log("🖼️ Processing uploaded image for optimization...");
         const processedImage = await processPostImage(uploadedPath);
 
         if (processedImage.processedPath !== uploadedPath) {
@@ -295,20 +294,16 @@ export const editPost = async (req, res) => {
           
           // Mark original file for cleanup
           tempFilesToClean.push(uploadedPath);
-          
-          console.log(`✅ Image optimized: ${processedImage.compressionRatio}% of original size`);
         } else {
           finalMediaPath = req.file.filename;
           mediaSize = req.file.size;
-          console.log("⚠️ Image processing failed, using original file");
         }
       } else {
         finalMediaPath = req.file.filename;
         mediaSize = req.file.size;
-        console.log("📎 Non-image media uploaded:", req.file.filename, "Type:", finalMediaType);
       }
-    } else if (mediaPath === null) {
-      // Explicitly removing media
+    } else if (mediaPath === "null" || mediaPath === undefined) {
+      // Explicitly removing media (mediaPath is "null" from FormData) or no mediaPath field sent
       finalMediaPath = null;
       finalMediaType = null;
       mediaSize = null;
@@ -328,38 +323,9 @@ export const editPost = async (req, res) => {
       await cleanupTempFiles(tempFilesToClean);
     }
 
-    console.log(`✏️ Post edited by user ${userId}: ${post._id}`);
     res.status(200).json(post);
   } catch (err) {
     console.error("Error editing post:", err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const deletePost = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { userId } = req.body;
-
-    const post = await Post.findById(id);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
-
-    // IDOR protection: Check if user owns the post
-    if (post.userId.toString() !== userId) {
-      return res.status(403).json({ message: "You can only delete your own posts" });
-    }
-
-    // Mark as deleted instead of actually deleting (soft delete)
-    post.isDeleted = true;
-    post.deletedAt = new Date();
-    await post.save();
-
-    console.log(`🗑️ Post deleted by user ${userId}: ${post._id}`);
-    res.status(200).json({ message: "Post deleted successfully" });
-  } catch (err) {
-    console.error("Error deleting post:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -386,25 +352,20 @@ export const deleteComment = async (req, res) => {
     if (comment.userId !== userId) {
       return res.status(403).json({ message: "You can only delete your own comments" });
     }
-
     // Remove the comment
     post.comments.splice(commentIndex, 1);
     await post.save();
 
-    console.log(`🗑️ Comment deleted by user ${userId} from post ${id}`);
-    res.status(200).json({ message: "Comment deleted successfully" });
+    console.log(`🗑️ Post deleted by user ${userId}: ${post._id}`);
   } catch (err) {
-    console.error("Error deleting comment:", err);
+    console.error("Error deleting post:", err);
     res.status(500).json({ message: err.message });
   }
-};
+try {
+  const { id } = req.params; // post ID
+  const { userId, comment } = req.body;
 
-export const addComment = async (req, res) => {
-  try {
-    const { id } = req.params; // post ID
-    const { userId, comment } = req.body;
-
-    // Validate input
+  // Validate input
     if (!comment || comment.trim().length === 0) {
       return res.status(400).json({ message: "Comment cannot be empty" });
     }

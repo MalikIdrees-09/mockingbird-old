@@ -26,7 +26,14 @@ const registerSchema = yup.object().shape({
   firstName: yup.string().required("required"),
   lastName: yup.string().required("required"),
   email: yup.string().email("invalid email").required("required"),
-  password: yup.string().required("required"),
+  password: yup
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .matches(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .matches(/[a-z]/, "Password must contain at least one lowercase letter")
+    .matches(/[0-9]/, "Password must contain at least one number")
+    .matches(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password must contain at least one special character")
+    .required("required"),
   location: yup.string().required("required"),
   bio: yup.string().required("required"),
   // picture: yup.string().required("required"), // Removed required validation for picture
@@ -359,7 +366,7 @@ const Form = () => {
                   name="password"
                   autoComplete="off"
                   error={Boolean(touched.password) && Boolean(errors.password)}
-                  helperText={touched.password && errors.password}
+                  helperText={touched.password && errors.password ? errors.password : "Must be at least 8 characters with uppercase, lowercase, numbers, and special characters"}
                   sx={{ gridColumn: "span 4" }}
                 />
 

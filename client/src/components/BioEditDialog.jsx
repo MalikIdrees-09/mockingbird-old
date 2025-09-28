@@ -14,6 +14,7 @@ import { Edit, Description } from "@mui/icons-material";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setLogin } from "state";
+import { API_BASE_URL } from "../utils/api";
 
 const BioEditDialog = ({ open, onClose, currentBio, userId }) => {
   const { palette } = useTheme();
@@ -27,7 +28,7 @@ const BioEditDialog = ({ open, onClose, currentBio, userId }) => {
 
     setUpdating(true);
     try {
-      const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/users/${userId}/bio`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/bio`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -47,11 +48,12 @@ const BioEditDialog = ({ open, onClose, currentBio, userId }) => {
 
         onClose();
       } else {
-        throw new Error("Failed to update bio");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update bio");
       }
     } catch (error) {
       console.error("Error updating bio:", error);
-      alert("Failed to update bio. Please try again.");
+      alert(error.message || "Failed to update bio. Please try again.");
     } finally {
       setUpdating(false);
     }

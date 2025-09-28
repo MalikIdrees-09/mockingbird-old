@@ -14,6 +14,7 @@ import { Edit, LocationOn } from "@mui/icons-material";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setLogin } from "state";
+import { API_BASE_URL } from "../utils/api";
 
 const LocationEditDialog = ({ open, onClose, currentLocation, userId }) => {
   const { palette } = useTheme();
@@ -27,7 +28,7 @@ const LocationEditDialog = ({ open, onClose, currentLocation, userId }) => {
 
     setUpdating(true);
     try {
-      const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/users/${userId}/location`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -47,11 +48,12 @@ const LocationEditDialog = ({ open, onClose, currentLocation, userId }) => {
 
         onClose();
       } else {
-        throw new Error("Failed to update location");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update location");
       }
     } catch (error) {
       console.error("Error updating location:", error);
-      alert("Failed to update location. Please try again.");
+      alert(error.message || "Failed to update location. Please try again.");
     } finally {
       setUpdating(false);
     }

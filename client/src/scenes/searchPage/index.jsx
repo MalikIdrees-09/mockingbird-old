@@ -21,6 +21,7 @@ import Footer from "components/Footer";
 import FlexBetween from "components/FlexBetween";
 import UserImage from "components/UserImage";
 import AdminBadge from "components/AdminBadge";
+import Friend from "components/Friend";
 
 const SearchPage = () => {
   const [searchType, setSearchType] = useState("users");
@@ -82,6 +83,17 @@ const SearchPage = () => {
       setLoading(false);
     }
   }, [token]);
+
+  const handleFriendAction = (action, friendId) => {
+    // Update the local state to reflect the change
+    setResults(prevResults => 
+      prevResults.map(result => 
+        result._id === friendId 
+          ? { ...result, isFriend: action === 'request_sent' ? "pending" : action === 'friends' ? true : false }
+          : result
+      )
+    );
+  };
 
   useEffect(() => {
     if (query.trim().length >= 2) {
@@ -233,13 +245,19 @@ const SearchPage = () => {
                             {result.bio || result.location || "No bio"}
                           </Typography>
                           <Box mt={2}>
-                            <Button
-                              variant={result.isFriend ? "outlined" : "contained"}
-                              size="small"
-                              fullWidth
-                            >
-                              {result.isFriend ? "Remove Friend" : "Add Friend"}
-                            </Button>
+                            <Friend
+                              friendId={result._id}
+                              name={`${result.firstName} ${result.lastName}`}
+                              subtitle={result.bio ? (result.bio.length > 100 ? `${result.bio.substring(0, 100)}...` : result.bio) : "No bio"}
+                              userPicturePath={result.picturePath}
+                              friendStatus={
+                                result.isFriend === true ? 'friends' :
+                                result.isFriend === "pending" ? 'request_sent' :
+                                'none'
+                              }
+                              onFriendAction={handleFriendAction}
+                              showAddFriend={true}
+                            />
                           </Box>
                         </Box>
                       ) : (

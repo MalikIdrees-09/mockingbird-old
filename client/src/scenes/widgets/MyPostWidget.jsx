@@ -20,16 +20,18 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Tooltip,
 } from "@mui/material";
 import FlexBetween from "components/FlexBetween";
 import Dropzone from "react-dropzone";
 import UserImage from "components/UserImage";
 import WidgetWrapper from "components/WidgetWrapper";
 import ProfanityWarningDialog from "components/ProfanityWarningDialog";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setPosts } from "state";
 import { TextareaAutosize } from '@mui/material';
+import { API_BASE_URL } from "../../utils/api";
 
 const MyPostWidget = ({ picturePath }) => {
   const dispatch = useDispatch();
@@ -44,6 +46,36 @@ const MyPostWidget = ({ picturePath }) => {
   const isNonMobileScreens = useMediaQuery("(min-width: 1000px)");
   const mediumMain = palette.neutral.mediumMain;
   const medium = palette.neutral.medium;
+
+  // Function to create and track blob URLs
+  const createBlobUrl = (file) => {
+    const url = URL.createObjectURL(file);
+    blobUrlsRef.current.push(url);
+    return url;
+  };
+
+  // Track blob URLs for cleanup
+  const blobUrlsRef = useRef([]);
+
+  // Cleanup blob URLs on unmount or mediaFile change
+  useEffect(() => {
+    return () => {
+      // Clean up all blob URLs when component unmounts
+      blobUrlsRef.current.forEach(url => {
+        URL.revokeObjectURL(url);
+      });
+      blobUrlsRef.current = [];
+    };
+  }, []);
+
+  // Clean up blob URLs when mediaFile changes
+  useEffect(() => {
+    // Clean up previous blob URLs
+    blobUrlsRef.current.forEach(url => {
+      URL.revokeObjectURL(url);
+    });
+    blobUrlsRef.current = [];
+  }, [mediaFile]);
 
   // Media type configurations
   const mediaConfigs = {
@@ -93,7 +125,7 @@ const MyPostWidget = ({ picturePath }) => {
         formData.append("mediaType", mediaType);
       }
 
-      const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/posts`, {
+      const response = await fetch(`${API_BASE_URL}/posts`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -103,10 +135,12 @@ const MyPostWidget = ({ picturePath }) => {
         const posts = await response.json();
         dispatch(setPosts({ posts }));
         
-        // Reset form
+        // Reset form completely
         setMediaFile(null);
         setMediaType(null);
         setPost("");
+        setAnchorEl(null); // Close mobile menu if open
+        setProfanityWarning({ open: false, message: "", details: "" }); // Reset profanity warning
       } else {
         const errorData = await response.json();
         console.error("Failed to create post:", response.status, response.statusText);
@@ -289,7 +323,18 @@ const MyPostWidget = ({ picturePath }) => {
                           {mediaFile.name}
                         </Typography>
                       </Box>
-                      <EditOutlined color="primary" />
+                      <Box display="flex" alignItems="center" gap={0.5}>
+                        <Tooltip title="Change file">
+                          <IconButton size="small" sx={{ color: palette.primary.main }}>
+                            <EditOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Remove media">
+                          <IconButton size="small" onClick={clearMedia} sx={{ color: palette.error.main }}>
+                            <Close fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </FlexBetween>
                     <Typography variant="caption" color="textSecondary">
                       {getFileSize(mediaFile.size)}
@@ -299,7 +344,7 @@ const MyPostWidget = ({ picturePath }) => {
                     {mediaType === 'image' && (
                       <Box
                         component="img"
-                        src={URL.createObjectURL(mediaFile)}
+                        src={createBlobUrl(mediaFile)}
                         alt="Preview"
                         sx={{
                           maxWidth: "200px",
@@ -314,7 +359,7 @@ const MyPostWidget = ({ picturePath }) => {
                     {mediaType === 'clip' && (
                       <Box
                         component="video"
-                        src={URL.createObjectURL(mediaFile)}
+                        src={createBlobUrl(mediaFile)}
                         controls
                         sx={{
                           maxWidth: "200px",

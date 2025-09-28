@@ -175,8 +175,8 @@ export const sendVerificationEmail = async (email, otp) => {
             }
 
             .email-logo {
-              width: 200;
-              height: 100px;
+              width: 200px;
+              height: 112px;
               margin-bottom: 20px;
               filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
             }
@@ -265,7 +265,7 @@ export const sendVerificationEmail = async (email, otp) => {
             }
 
             .otp-label {
-              color: #FFFFFF;
+              color: #1a1a1a;
               font-size: 14px;
               font-weight: 600;
               text-transform: uppercase;
@@ -1087,7 +1087,7 @@ export const sendEmailChangeVerification = async (email, otp, oldEmail, newEmail
             }
 
             .otp-label {
-              color: #FFFFFF;
+              color: #1a1a1a;
               font-size: 14px;
               font-weight: 600;
               text-transform: uppercase;
@@ -1741,7 +1741,7 @@ This is an automated message, please do not reply.
 // Send password reset email
 export const sendPasswordResetEmail = async (email, resetToken) => {
   try {
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://mockingbird.idrees.in'}/reset-password?token=${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL || 'https://mockingbird.idrees.in'}/reset-password?token=${resetToken}`;
 
     const mailOptions = {
       from: `"Mockingbird Security" <${process.env.EMAIL_USER || "verify_email@idrees.in"}>`,
@@ -1822,6 +1822,10 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
                 --error-border: #F44336;
                 --error-text: #EF5350;
                 --gradient-orange: linear-gradient(135deg, #FB8C00 0%, #FFEB3B 100%);
+              }
+
+              .action-button {
+                color: #FFFFFF !important;
               }
             }
 
@@ -1943,7 +1947,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
             .action-button {
               display: inline-block;
               background: var(--gradient-orange);
-              color: #FFFFFF;
+              color: #FFD700 !important;
               padding: 18px 36px;
               text-decoration: none;
               border-radius: 12px;
@@ -1951,7 +1955,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
               font-size: 18px;
               text-align: center;
               box-shadow: 0 8px 25px rgba(255, 152, 0, 0.4);
-              border: 3px solid #FFFFFF;
+              border: 3px solid #FF6F00;
               transition: all 0.3s ease;
               position: relative;
               overflow: hidden;
@@ -2093,19 +2097,8 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
               .email-subtitle {
                 font-size: 18px;
               }
-
               .email-content {
                 padding: 35px 30px;
-              }
-
-              .otp-box {
-                min-width: 320px;
-                padding: 35px;
-              }
-
-              .otp-code {
-                font-size: 50px;
-                letter-spacing: 12px;
               }
 
               .action-button {
@@ -2142,7 +2135,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
                 image-rendering: crisp-edges;
               }
 
-              .otp-code {
+              .action-button {
                 font-synthesis: none;
                 -webkit-font-smoothing: antialiased;
                 -moz-osx-font-smoothing: grayscale;
@@ -2172,7 +2165,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
                   <p class="message-text">We received a request to reset your password for your Mockingbird account. Click the button below to create a new password.</p>
 
                   <div class="action-button-container">
-                    <a href="${resetUrl}" class="action-button">
+                    <a href="${resetUrl}" class="action-button" style="color: #FFD700 !important; display: inline-block; background: linear-gradient(135deg, #FFA726 0%, #FFD54F 100%); padding: 18px 36px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 18px; text-align: center; box-shadow: 0 8px 25px rgba(255, 152, 0, 0.4); border: 3px solid #FF6F00; transition: all 0.3s ease; position: relative; overflow: hidden; min-width: 200px;">
                       Reset My Password
                     </a>
                   </div>

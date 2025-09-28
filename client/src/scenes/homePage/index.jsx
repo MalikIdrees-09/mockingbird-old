@@ -10,6 +10,7 @@ import FriendRequestsWidget from "scenes/widgets/FriendRequestsWidget";
 
 const HomePage = () => {
   const isNonMobileScreens = useMediaQuery("(min-width:1000px)");
+  const isMobile = useMediaQuery("(max-width: 600px)");
   const { _id, picturePath } = useSelector((state) => state.user);
 
   return (
@@ -17,24 +18,24 @@ const HomePage = () => {
       <Navbar />
       <Box
         width="100%"
-        padding="2rem 6%"
+        padding={isMobile ? "0.5rem 2%" : "2rem 6%"}
         display={isNonMobileScreens ? "flex" : "block"}
-        gap="0.5rem"
         justifyContent="space-between"
         flex={1}
       >
         <Box flexBasis={isNonMobileScreens ? "26%" : undefined}>
-          <UserWidget userId={_id} picturePath={picturePath} />
-          <Box m="2rem 0" />
+          <UserWidget userId={_id} picturePath={picturePath} allowProfileEdits={false} />
+          <Box m={isMobile ? "1rem 0" : "2rem 0"} />
           <FriendRequestsWidget userId={_id} />
-          <Box m="2rem 0" />
+          <Box m={isMobile ? "1rem 0" : "2rem 0"} />
           <FriendListWidget userId={_id} />
         </Box>
         <Box
           flexBasis={isNonMobileScreens ? "42%" : undefined}
-          mt={isNonMobileScreens ? undefined : "2rem"}
+          mt={isNonMobileScreens ? undefined : isMobile ? "1rem" : "2rem"}
         >
           <MyPostWidget picturePath={picturePath} />
+          <Box m={isMobile ? "1rem 0" : "2rem 0"} />
           <PostsWidget userId={_id} />
         </Box>
         {isNonMobileScreens && (

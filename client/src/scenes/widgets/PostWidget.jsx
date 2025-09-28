@@ -39,6 +39,7 @@ import AdminBadge from "components/AdminBadge";
 import ShareDialog from "components/ShareDialog";
 import UserImage from "components/UserImage";
 import ReactMarkdown from 'react-markdown';
+import LinkRenderer, { MarkdownLink } from 'components/LinkRenderer';
 
 const PostWidget = ({
   postId,
@@ -72,11 +73,15 @@ const PostWidget = ({
   const [editingPostText, setEditingPostText] = useState(description);
   const [editingPostMediaFile, setEditingPostMediaFile] = useState(null);
   const [editingPostMediaPreview, setEditingPostMediaPreview] = useState(null);
+  const [removeExistingMedia, setRemoveExistingMedia] = useState(false);
   const [isSubmittingPostEdit, setIsSubmittingPostEdit] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const token = useSelector((state) => state.token);
   const loggedInUserId = useSelector((state) => state.user._id);
+  const loggedInUserFriends = useSelector((state) => state.user.friends || []);
+  const loggedInUserFriendRequests = useSelector((state) => state.user.friendRequests || []);
+  const loggedInUserSentFriendRequests = useSelector((state) => state.user.sentFriendRequests || []);
   const loggedInUserPicturePath = useSelector((state) => state.user.picturePath);
   const loggedInUserIsAdmin = useSelector((state) => state.user.isAdmin);
   const isLiked = Boolean(likes[loggedInUserId]);
@@ -85,6 +90,27 @@ const PostWidget = ({
   const { palette } = useTheme();
   const main = palette.neutral.main;
   const primary = palette.primary.main;
+
+  // Determine friend status
+  const getFriendStatus = () => {
+    if (loggedInUserFriends.includes(postUserId)) {
+      return 'friends';
+    } else if (loggedInUserSentFriendRequests.includes(postUserId)) {
+      return 'request_sent';
+    } else if (loggedInUserFriendRequests.includes(postUserId)) {
+      return 'request_received';
+    }
+    return 'none';
+  };
+
+  const friendStatus = getFriendStatus();
+
+  // Handle friend action updates
+  const handleFriendAction = (action, friendId) => {
+    // This will be called when friend actions happen in the Friend component
+    // The Redux state will be updated automatically by the Friend component's actions
+    // No additional logic needed here as the component will re-render with new state
+  };
 
   // Handle post click to navigate to detail page (only when not in detail view)
   const handlePostClick = () => {
@@ -249,9 +275,16 @@ const PostWidget = ({
         setSelectedMediaFile(null);
         setMediaPreview(null);
         setIsComments(true); // Show comments section if not already shown
+        setIsCommentFormActive(false); // Reset form state
+        console.log("Comment added successfully");
+        
+        // Skip splash screen and refresh the page
+        localStorage.setItem('skipSplash', 'true');
+        window.location.reload();
       } else {
         const errorData = await handledResponse.json();
         console.error("Error submitting comment:", errorData.message);
+        alert(`Failed to add comment: ${errorData.message || "Unknown error"}`);
       }
     } catch (error) {
       console.error("Error submitting comment:", error);
@@ -375,10 +408,11 @@ const PostWidget = ({
     setEditingPostText(description);
     setEditingPostMediaFile(null);
     setEditingPostMediaPreview(null);
+    setRemoveExistingMedia(false);
   };
 
   const submitEditedPost = async () => {
-    if (!editingPostText.trim() && !editingPostMediaFile && !mediaPath) return;
+    if (!editingPostText.trim() && !editingPostMediaFile && !mediaPath && !removeExistingMedia) return;
 
     setIsSubmittingPostEdit(true);
     try {
@@ -396,9 +430,10 @@ const PostWidget = ({
         } else if (editingPostMediaFile.type.startsWith('video/') || editingPostMediaFile.type === 'image/gif') {
           formData.append('mediaType', 'clip');
         }
-      } else if (!mediaPath) {
-        // No media selected and no existing media - remove media
-        formData.append('mediaPath', null);
+      } else if (removeExistingMedia) {
+        // No media selected and remove existing media flag is set
+        formData.append('mediaPath', 'null');
+        formData.append('mediaType', 'null');
       }
 
       const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
@@ -521,9 +556,11 @@ const PostWidget = ({
             friendId={postUserId}
             name={name}
             subtitle={bio ? (bio.length > 100 ? `${bio.substring(0, 100)}...` : bio) : "No bio yet"}
-            userPicturePath={userPicturePath}
+            userPicturePath={postUserId === loggedInUserId ? loggedInUserPicturePath : userPicturePath}
             isAdmin={isAdmin}
             size="55px"
+            friendStatus={friendStatus}
+            onFriendAction={handleFriendAction}
           />
         </Box>
         {/* Post Content - Show edit form when editing */}
@@ -595,12 +632,37 @@ const PostWidget = ({
             )}
 
             {/* Current media display */}
-            {mediaPath && !editingPostMediaFile && (
-              <Box sx={{ mb: 2 }}>
+            {mediaPath && !editingPostMediaFile && !removeExistingMedia && (
+              <Box sx={{ mb: 2, position: "relative" }}>
                 <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
-                  Current media (will be replaced if you upload new media):
+                  Current media:
                 </Typography>
                 {renderMedia()}
+                <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="error"
+                    onClick={() => {
+                      // Immediately hide the current media and set flag for saving
+                      setRemoveExistingMedia(true);
+                      setEditingPostMediaFile(null);
+                      setEditingPostMediaPreview(null);
+                    }}
+                    disabled={isSubmittingPostEdit}
+                  >
+                    Remove Media
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {/* Show message when media will be removed */}
+            {removeExistingMedia && !editingPostMediaFile && (
+              <Box sx={{ mb: 2, p: 2, bgcolor: palette.error.light + "20", borderRadius: "8px", border: `1px solid ${palette.error.light}` }}>
+                <Typography variant="body2" color="error" sx={{ fontWeight: 500 }}>
+                  Media will be removed when you save changes
+                </Typography>
               </Box>
             )}
 
@@ -694,7 +756,7 @@ const PostWidget = ({
             }}
           >
             <Typography color={main} sx={{ mt: "1rem" }}>
-              <ReactMarkdown>{description}</ReactMarkdown>
+              <ReactMarkdown components={{ a: MarkdownLink }}>{description}</ReactMarkdown>
             </Typography>
             {renderMedia()}
           </Box>
@@ -814,7 +876,7 @@ const PostWidget = ({
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 0.5 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <UserImage
-                          image={commentUserPicturePath}
+                          image={commentUserId === loggedInUserId ? loggedInUserPicturePath : commentUserPicturePath}
                           size="32px"
                           name={commentUserName}
                         />
@@ -866,6 +928,10 @@ const PostWidget = ({
                                 if (handledResponse.ok) {
                                   const updatedPost = await handledResponse.json();
                                   dispatch(setPost({ post: updatedPost }));
+                                  
+                                  // Skip splash screen and refresh the page
+                                  localStorage.setItem('skipSplash', 'true');
+                                  window.location.reload();
                                 } else {
                                   const errorData = await handledResponse.json();
                                   console.error("Error deleting comment:", errorData.message);
@@ -927,9 +993,11 @@ const PostWidget = ({
                         </Box>
                       </Box>
                     ) : (
-                      <Typography sx={{ color: main, mb: 1 }}>
-                        {commentText}
-                      </Typography>
+                      <LinkRenderer
+                        text={commentText}
+                        variant="body2"
+                        sx={{ color: main, mb: 1 }}
+                      />
                     )}
                     
                     {/* Comment Media Display */}

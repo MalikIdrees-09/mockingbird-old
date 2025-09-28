@@ -64,10 +64,25 @@ const ResetPassword = () => {
       return;
     }
 
-    if (formData.newPassword.length < 6) {
+    if (formData.newPassword.length < 8) {
       setSnackbar({
         open: true,
-        message: "Password must be at least 6 characters long",
+        message: "Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters",
+        severity: "error",
+      });
+      return;
+    }
+
+    // Check for password complexity requirements
+    const hasUpperCase = /[A-Z]/.test(formData.newPassword);
+    const hasLowerCase = /[a-z]/.test(formData.newPassword);
+    const hasNumbers = /\d/.test(formData.newPassword);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.newPassword);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
+      setSnackbar({
+        open: true,
+        message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
         severity: "error",
       });
       return;
@@ -163,7 +178,12 @@ const ResetPassword = () => {
           />
           <CardContent>
             <Alert severity="info" sx={{ mb: 3 }}>
-              Please choose a strong password that is at least 6 characters long.
+              Please choose a strong password that meets the following requirements:
+              <br />• At least 8 characters long
+              <br />• At least one uppercase letter (A-Z)
+              <br />• At least one lowercase letter (a-z)
+              <br />• At least one number (0-9)
+              <br />• At least one special character (!@#$%^&*)
             </Alert>
 
             <Box component="form" onSubmit={handleSubmit}>

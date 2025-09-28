@@ -4,7 +4,29 @@ import { Box } from "@mui/material";
 const SplashScreen = ({ onVideoEnd }) => {
   useEffect(() => {
     const timer = setTimeout(onVideoEnd, 10000); // Fallback after 10 seconds
-    return () => clearTimeout(timer);
+
+    // Handle space key press to skip
+    const handleKeyPress = (event) => {
+      if (event.code === 'Space') {
+        event.preventDefault();
+        onVideoEnd();
+      }
+    };
+
+    // Handle touch/tap to skip on mobile
+    const handleTouchStart = () => {
+      onVideoEnd();
+    };
+
+    // Add event listeners
+    document.addEventListener('keydown', handleKeyPress);
+    document.addEventListener('touchstart', handleTouchStart);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('keydown', handleKeyPress);
+      document.removeEventListener('touchstart', handleTouchStart);
+    };
   }, [onVideoEnd]);
 
   return (

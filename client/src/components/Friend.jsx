@@ -1,9 +1,7 @@
 import { 
   PersonAddOutlined, 
-  PersonRemoveOutlined,
   Check,
   Close,
-  Schedule,
 } from "@mui/icons-material";
 import { Box, IconButton, Typography, useTheme, Button } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
@@ -12,7 +10,8 @@ import {
   setFriends,
   removeSentFriendRequest,
   removeFriendRequest,
-  addFriend
+  addFriend,
+  addSentFriendRequest
 } from "state";
 import FlexBetween from "./FlexBetween";
 import UserImage from "./UserImage";
@@ -34,7 +33,6 @@ const Friend = ({
   const navigate = useNavigate();
   const { _id } = useSelector((state) => state.user);
   const token = useSelector((state) => state.token);
-  const friends = useSelector((state) => state.user.friends || []);
 
   const { palette } = useTheme();
   const primaryLight = palette.primary.light;
@@ -42,7 +40,8 @@ const Friend = ({
   const main = palette.neutral.main;
   const medium = palette.neutral.medium;
 
-  const sendFriendRequest = async () => {
+  const sendFriendRequest = async (event) => {
+    event.stopPropagation();
     try {
       const response = await fetch(
         `${API_BASE_URL}/users/${_id}/friend-request/${friendId}`,
@@ -68,7 +67,8 @@ const Friend = ({
     }
   };
 
-  const acceptFriendRequest = async () => {
+  const acceptFriendRequest = async (event) => {
+    event.stopPropagation();
     try {
       const response = await fetch(
         `${API_BASE_URL}/users/${_id}/accept-friend/${friendId}`,
@@ -105,7 +105,8 @@ const Friend = ({
     }
   };
 
-  const rejectFriendRequest = async () => {
+  const rejectFriendRequest = async (event) => {
+    event.stopPropagation();
     try {
       const response = await fetch(
         `${API_BASE_URL}/users/${_id}/reject-friend/${friendId}`,
@@ -131,7 +132,8 @@ const Friend = ({
     }
   };
 
-  const cancelFriendRequest = async () => {
+  const cancelFriendRequest = async (event) => {
+    event.stopPropagation();
     try {
       const response = await fetch(
         `${API_BASE_URL}/users/${_id}/cancel-friend/${friendId}`,
@@ -153,30 +155,6 @@ const Friend = ({
       }
     } catch (error) {
       console.error("Error cancelling friend request:", error);
-    }
-  };
-
-  const removeFriend = async () => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/users/${_id}/${friendId}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      
-      if (response.ok) {
-        const friendsData = await response.json();
-        dispatch(setFriends({ friends: friendsData }));
-      } else {
-        console.error("Failed to remove friend");
-      }
-    } catch (error) {
-      console.error("Error removing friend:", error);
     }
   };
 
@@ -212,7 +190,7 @@ const Friend = ({
         <Box sx={{ display: "flex", gap: "0.5rem" }}>
           {friendStatus === 'none' && (
             <IconButton
-              onClick={sendFriendRequest}
+              onClick={(e) => sendFriendRequest(e)}
               sx={{ 
                 backgroundColor: primaryLight, 
                 p: "0.6rem",
@@ -229,36 +207,30 @@ const Friend = ({
           )}
           
           {friendStatus === 'request_sent' && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-              <IconButton
-                onClick={cancelFriendRequest}
-                sx={{ 
-                  backgroundColor: palette.warning.light, 
-                  p: "0.6rem",
-                  '&:hover': { backgroundColor: palette.warning.main }
-                }}
-                title="Cancel friend request"
-              >
-                <Schedule sx={{ color: palette.warning.dark }} />
-              </IconButton>
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  color: palette.warning.dark, 
-                  fontSize: '0.7rem',
-                  textAlign: 'center',
-                  fontWeight: 500
-                }}
-              >
-                Request Sent
-              </Typography>
-            </Box>
+            <Button
+              onClick={(e) => cancelFriendRequest(e)}
+              variant="contained"
+              size="small"
+              sx={{ 
+                backgroundColor: palette.neutral.medium,
+                color: 'white',
+                minWidth: '100px',
+                '&:hover': { 
+                  backgroundColor: palette.neutral.main,
+                  transform: 'scale(1.05)'
+                },
+                transition: 'all 0.2s ease'
+              }}
+              title="Cancel friend request"
+            >
+              Request Sent
+            </Button>
           )}
           
           {friendStatus === 'request_received' && (
             <>
               <Button
-                onClick={acceptFriendRequest}
+                onClick={(e) => acceptFriendRequest(e)}
                 variant="contained"
                 size="small"
                 sx={{ 
@@ -272,7 +244,7 @@ const Friend = ({
                 <Check fontSize="small" />
               </Button>
               <Button
-                onClick={rejectFriendRequest}
+                onClick={(e) => rejectFriendRequest(e)}
                 variant="outlined"
                 size="small"
                 sx={{ 
@@ -293,21 +265,26 @@ const Friend = ({
           )}
           
           {friendStatus === 'friends' && (
-            <IconButton
-              onClick={removeFriend}
-              sx={{ 
-                backgroundColor: primaryLight, 
-                p: "0.6rem",
-                '&:hover': { 
-                  backgroundColor: palette.error.main,
-                  transform: 'scale(1.05)'
-                },
-                transition: 'all 0.2s ease'
-              }}
-              title="Remove friend"
-            >
-              <PersonRemoveOutlined sx={{ color: primaryDark }} />
-            </IconButton>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              backgroundColor: palette.success.light + '40',
+              borderRadius: '20px',
+              px: 2,
+              py: 0.5,
+              border: `1px solid ${palette.success.light}`
+            }}>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: palette.success.dark, 
+                  fontWeight: 600,
+                  fontSize: '0.8rem'
+                }}
+              >
+                You are friends
+              </Typography>
+            </Box>
           )}
         </Box>
       )}

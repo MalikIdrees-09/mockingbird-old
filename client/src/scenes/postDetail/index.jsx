@@ -27,6 +27,12 @@ const PostDetail = () => {
   const token = useSelector((state) => state.token);
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  
+  // Listen for post updates in Redux store
+  const updatedPost = useSelector((state) => {
+    const posts = state.posts || [];
+    return posts.find(p => p._id === postId);
+  });
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -70,6 +76,13 @@ const PostDetail = () => {
 
     fetchPost();
   }, [postId, token]);
+
+  // Update local post state when Redux store post is updated
+  useEffect(() => {
+    if (updatedPost && post) {
+      setPost(updatedPost);
+    }
+  }, [updatedPost, post]);
 
   const handleBack = () => {
     // If user is authenticated, go to home, otherwise go to login
