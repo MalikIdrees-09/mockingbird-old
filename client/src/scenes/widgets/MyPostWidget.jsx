@@ -39,6 +39,7 @@ const MyPostWidget = ({ picturePath }) => {
   const [post, setPost] = useState("");
   const [anchorEl, setAnchorEl] = useState(null); // For mobile menu
   const [profanityWarning, setProfanityWarning] = useState({ open: false, message: "", details: "" });
+  const [mediaType, setMediaType] = useState('image'); // Track the current media type
   const { palette } = useTheme();
   const { _id } = useSelector((state) => state.user);
   const token = useSelector((state) => state.token);
@@ -190,6 +191,45 @@ const MyPostWidget = ({ picturePath }) => {
 
   const handleMobileMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleMediaSelect = (type) => {
+    setMediaType(type);
+    // Create a file input element
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = type === 'image'; // Only allow multiple for images
+    input.accept = Object.keys(mediaConfigs[type].accept).join(',');
+
+    input.onchange = (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const newFiles = Array.from(e.target.files);
+        // Combine with existing files, but limit to 10 total
+        const updatedFiles = [...mediaFiles, ...newFiles].slice(0, 10);
+        setMediaFiles(updatedFiles);
+      }
+    };
+    input.click();
+  };
+
+  const handleMobileMediaSelect = (type) => {
+    setMediaType(type);
+    handleMobileMenuClose();
+    // Create a file input element
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = type === 'image'; // Only allow multiple for images
+    input.accept = Object.keys(mediaConfigs[type].accept).join(',');
+
+    input.onchange = (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const newFiles = Array.from(e.target.files);
+        // Combine with existing files, but limit to 10 total
+        const updatedFiles = [...mediaFiles, ...newFiles].slice(0, 10);
+        setMediaFiles(updatedFiles);
+      }
+    };
+    input.click();
   };
 
   return (
