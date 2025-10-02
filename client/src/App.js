@@ -6,13 +6,11 @@ import SettingsPage from "scenes/settingsPage";
 import ResetPasswordPage from "scenes/resetPasswordPage";
 import AdminPage from "scenes/adminPage";
 import SearchPage from "scenes/searchPage";
-import PostDetail from "scenes/postDetail";
 import Page404 from "scenes/page404";
 import { useMemo, useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { createTheme } from "@mui/material/styles";
-import { themeSettings } from "./theme";
 import { setLogout } from "./state";
 import FloatingActionButtons from "./components/FloatingActionButtons";
 

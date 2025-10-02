@@ -33,12 +33,8 @@ import { useNavigate } from "react-router-dom";
 import { setPost } from "state";
 import { handleBannedUserError } from "utils/api";
 import { API_BASE_URL } from "utils/api";
-import WidgetWrapper from "components/WidgetWrapper";
-import Friend from "components/Friend";
-import AdminBadge from "components/AdminBadge";
-import ShareDialog from "components/ShareDialog";
-import UserImage from "components/UserImage";
-import EmojiReactions from "components/EmojiReactions";
+import ReactMarkdown from 'react-markdown';
+import LinkRenderer, { MarkdownLink } from 'components/LinkRenderer';
 
 const PostWidget = ({
   postId,

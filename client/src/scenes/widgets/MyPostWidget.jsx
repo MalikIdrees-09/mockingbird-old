@@ -30,9 +30,7 @@ import ProfanityWarningDialog from "components/ProfanityWarningDialog";
 import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setPosts } from "state";
-import { TextareaAutosize } from '@mui/material';
-import RichTextEditor from "components/RichTextEditor";
-import { useToast } from "components/ToastContext";
+import { API_BASE_URL } from "../../utils/api";
 
 const MyPostWidget = ({ picturePath }) => {
   const dispatch = useDispatch();
