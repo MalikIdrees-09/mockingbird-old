@@ -14,8 +14,7 @@ import { CssBaseline, ThemeProvider } from "@mui/material";
 import { createTheme } from "@mui/material/styles";
 import { themeSettings } from "./theme";
 import { setLogout } from "./state";
-import { API_BASE_URL } from "./utils/api";
-import SplashScreen from "./components/SplashScreen";
+import FloatingActionButtons from "./components/FloatingActionButtons";
 
 function App() {
   const mode = useSelector((state) => state.mode);
@@ -83,41 +82,46 @@ function App() {
         <SplashScreen onVideoEnd={() => setShowSplash(false)} />
       ) : (
         <BrowserRouter>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <Routes>
-              <Route path="/" element={<LoginPage />} />
-              <Route
-                path="/home"
-                element={isAuth ? <HomePage /> : <Navigate to="/" />}
-              />
-              <Route
-                path="/profile/:userId"
-                element={isAuth ? <ProfilePage /> : <Navigate to="/" />}
-              />
-              <Route
-                path="/post/:postId"
-                element={<PostDetail />}
-              />
-              <Route
-                path="/settings"
-                element={isAuth ? <SettingsPage /> : <Navigate to="/" />}
-              />
-              <Route
-                path="/search"
-                element={isAuth ? <SearchPage /> : <Navigate to="/" />}
-              />
-              <Route
-                path="/reset-password"
-                element={<ResetPasswordPage />}
-              />
-              <Route
-                path="/admin"
-                element={isAuth && isAdmin ? <AdminPage /> : <Navigate to="/" />}
-              />
-              <Route path="*" element={<Page404 />} />
-            </Routes>
-          </ThemeProvider>
+          <ToastProvider>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
+              <Routes>
+                <Route path="/" element={<LoginPage />} />
+                <Route
+                  path="/home"
+                  element={isAuth ? <HomePage /> : <Navigate to="/" />}
+                />
+                <Route
+                  path="/profile/:userId"
+                  element={isAuth ? <ProfilePage /> : <Navigate to="/" />}
+                />
+                <Route
+                  path="/post/:postId"
+                  element={<PostDetail />}
+                />
+                <Route
+                  path="/settings"
+                  element={isAuth ? <SettingsPage /> : <Navigate to="/" />}
+                />
+                <Route
+                  path="/search"
+                  element={isAuth ? <SearchPage /> : <Navigate to="/" />}
+                />
+                <Route
+                  path="/reset-password"
+                  element={<ResetPasswordPage />}
+                />
+                <Route
+                  path="/admin"
+                  element={isAuth && isAdmin ? <AdminPage /> : <Navigate to="/" />}
+                />
+                <Route path="*" element={<Page404 />} />
+              </Routes>
+              <ToastContainer />
+              <KeyboardShortcuts />
+              <FloatingActionButtons />
+            </ThemeProvider>
+          </ToastProvider>
         </BrowserRouter>
       )}
     </div>

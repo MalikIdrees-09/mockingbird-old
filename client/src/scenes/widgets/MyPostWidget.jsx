@@ -31,7 +31,8 @@ import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setPosts } from "state";
 import { TextareaAutosize } from '@mui/material';
-import { API_BASE_URL } from "../../utils/api";
+import RichTextEditor from "components/RichTextEditor";
+import { useToast } from "components/ToastContext";
 
 const MyPostWidget = ({ picturePath }) => {
   const dispatch = useDispatch();
@@ -46,6 +47,7 @@ const MyPostWidget = ({ picturePath }) => {
   const isNonMobileScreens = useMediaQuery("(min-width: 1000px)");
   const mediumMain = palette.neutral.mediumMain;
   const medium = palette.neutral.medium;
+  const toast = useToast();
 
   // Function to create and track blob URLs
   const createBlobUrl = (file) => {
@@ -151,12 +153,12 @@ const MyPostWidget = ({ picturePath }) => {
             details: errorData.details
           });
         } else {
-          alert("Failed to create post. Please try again.");
+        toast.showError("Failed to create post. Please try again.");
         }
       }
     } catch (error) {
       console.error("Network error:", error);
-      alert("Network error. Please try again.");
+      toast.showError("Network error. Please try again.");
     }
   };
 
@@ -237,49 +239,27 @@ const MyPostWidget = ({ picturePath }) => {
       <FlexBetween gap="1.5rem">
         <UserImage image={picturePath} />
         <Box sx={{ width: "100%" }}>
-          <TextareaAutosize
-            placeholder="What's on your mind..."
-            onChange={(e) => setPost(e.target.value)}
+          <RichTextEditor
             value={post}
-            minRows={1}
-            maxRows={10}
-            onKeyDown={(e) => {
-              // Allow new lines with Enter, prevent form submission
-              if (e.key === 'Enter' && !e.shiftKey) {
-                // Let it create a new line naturally
-                return;
+            onChange={setPost}
+            placeholder="What's on your mind..."
+            maxLength={2000}
+            sx={{
+              '& .MuiBox-root': {
+                borderRadius: '2rem',
+                overflow: 'hidden'
               }
-            }}
-            style={{
-              width: "100%",
-              backgroundColor: palette.neutral.light,
-              borderRadius: "2rem",
-              padding: "1rem 2rem",
-              border: "none",
-              outline: "none",
-              fontSize: "1rem",
-              fontFamily: "inherit",
-              resize: "none",
-              boxSizing: "border-box"
             }}
           />
           {post && (
             <Box sx={{ mt: 1, p: 2, backgroundColor: palette.background.alt, borderRadius: "8px" }}>
               <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>Preview:</Typography>
-              <div style={{ fontSize: "0.9rem" }}>
-                {post.split('\n').map((line, i) => (
-                  <div key={i}>
-                    {line.split(' ').map((word, j) => {
-                      if (word.startsWith('**') && word.endsWith('**')) {
-                        return <strong key={j}>{word.slice(2, -2)} </strong>;
-                      } else if (word.startsWith('*') && word.endsWith('*')) {
-                        return <em key={j}>{word.slice(1, -1)} </em>;
-                      }
-                      return <span key={j}>{word} </span>;
-                    })}
-                  </div>
-                ))}
-              </div>
+              <div
+                style={{ fontSize: "0.9rem" }}
+                dangerouslySetInnerHTML={{
+                  __html: post.replace(/\n/g, '<br>')
+                }}
+              />
             </Box>
           )}
         </Box>

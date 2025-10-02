@@ -38,8 +38,7 @@ import Friend from "components/Friend";
 import AdminBadge from "components/AdminBadge";
 import ShareDialog from "components/ShareDialog";
 import UserImage from "components/UserImage";
-import ReactMarkdown from 'react-markdown';
-import LinkRenderer, { MarkdownLink } from 'components/LinkRenderer';
+import EmojiReactions from "components/EmojiReactions";
 
 const PostWidget = ({
   postId,

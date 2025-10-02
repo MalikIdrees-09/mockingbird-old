@@ -469,6 +469,449 @@ export const themeSettings = (mode) => {
             },
           },
         },
+    },
+  };
+};
+
+// Dark mode color tokens
+export const darkColorTokens = {
+  grey: {
+    0: "#000000",
+    10: "#1A1A1A",
+    50: "#2A2A2A",
+    100: "#404040",
+    200: "#606060",
+    300: "#808080",
+    400: "#A8A8A8",
+    500: "#D0D0D0",
+    600: "#E8E8E8",
+    700: "#F0F0F0",
+    800: "#F8F8F8",
+    900: "#FEFEFE",
+    1000: "#FFFFFF",
+  },
+  primary: {
+    50: "#4A3F0B",
+    100: "#6B5B10",
+    200: "#8B6914",
+    300: "#B8941F",
+    400: "#DAA520",
+    500: "#FFD54F",
+    600: "#FFE082",
+    700: "#FFECB3",
+    800: "#FFF8E1",
+    900: "#FFFEF7",
+  },
+  secondary: {
+    50: "#2F1707",
+    100: "#4A240B",
+    200: "#6B3410",
+    300: "#8B4513",
+    400: "#A0522D",
+    500: "#FF8A8A",
+    600: "#FFB3B3",
+    700: "#FFD6D6",
+    800: "#FFEBEB",
+    900: "#FFF8F8",
+  },
+  accent: {
+    50: "#4A2F07",
+    100: "#6B4210",
+    200: "#8B5A14",
+    300: "#B8751F",
+    400: "#DAA520",
+    500: "#FFB84D",
+    600: "#FFCA85",
+    700: "#FFDDB3",
+    800: "#FFEFDB",
+    900: "#FFF8F0",
+  },
+};
+
+// Theme settings function for light and dark modes
+export const themeSettings = (mode) => {
+  return {
+    palette: {
+      mode: mode,
+      ...(mode === "light"
+        ? {
+            // Light mode palette
+            primary: {
+              main: colorTokens.primary[500],
+              light: colorTokens.primary[400],
+              dark: colorTokens.primary[600],
+            },
+            secondary: {
+              main: colorTokens.secondary[500],
+              light: colorTokens.secondary[400],
+              dark: colorTokens.secondary[600],
+            },
+            accent: {
+              main: colorTokens.accent[500],
+              light: colorTokens.accent[400],
+              dark: colorTokens.accent[600],
+            },
+            neutral: {
+              dark: colorTokens.grey[700],
+              main: colorTokens.grey[500],
+              mediumMain: colorTokens.grey[400],
+              medium: colorTokens.grey[300],
+              light: colorTokens.grey[50],
+            },
+            background: {
+              default: colorTokens.grey[0],
+              alt: colorTokens.grey[50],
+              paper: colorTokens.grey[0],
+            },
+          }
+        : {
+            // Dark mode palette
+            primary: {
+              main: darkColorTokens.primary[400],
+              light: darkColorTokens.primary[300],
+              dark: darkColorTokens.primary[500],
+            },
+            secondary: {
+              main: darkColorTokens.secondary[400],
+              light: darkColorTokens.secondary[300],
+              dark: darkColorTokens.secondary[500],
+            },
+            accent: {
+              main: darkColorTokens.accent[400],
+              light: darkColorTokens.accent[300],
+              dark: darkColorTokens.accent[500],
+            },
+            neutral: {
+              dark: darkColorTokens.grey[100],
+              main: darkColorTokens.grey[200],
+              mediumMain: darkColorTokens.grey[300],
+              medium: darkColorTokens.grey[400],
+              light: darkColorTokens.grey[800],
+            },
+            background: {
+              default: darkColorTokens.grey[0],
+              alt: darkColorTokens.grey[50],
+              paper: darkColorTokens.grey[10],
+            },
+          }),
+    },
+    typography: {
+      fontFamily: ["Lora", "Times New Roman", "Georgia", "serif"].join(","),
+      fontSize: 14,
+      h1: {
+        fontFamily: ["Playfair Display", "Times New Roman", "Georgia", "serif"].join(","),
+        fontSize: 40,
+        fontWeight: 700,
+        lineHeight: 1.2,
+        letterSpacing: "-0.02em",
+        "@media (max-width:600px)": {
+          fontSize: "2rem",
+          lineHeight: 1.3,
+        },
+        "@media (max-width:400px)": {
+          fontSize: "1.75rem",
+          lineHeight: 1.4,
+        },
+      },
+      h2: {
+        fontFamily: ["Playfair Display", "Times New Roman", "Georgia", "serif"].join(","),
+        fontSize: "2rem",
+        fontWeight: 600,
+        lineHeight: 1.3,
+        letterSpacing: "-0.01em",
+        "@media (max-width:600px)": {
+          fontSize: "1.75rem",
+          lineHeight: 1.4,
+        },
+        "@media (max-width:400px)": {
+          fontSize: "1.5rem",
+          lineHeight: 1.5,
+        },
+      },
+      h3: {
+        fontFamily: ["Playfair Display", "Times New Roman", "Georgia", "serif"].join(","),
+        fontSize: "1.75rem",
+        fontWeight: 600,
+        lineHeight: 1.4,
+        letterSpacing: "0em",
+        "@media (max-width:600px)": {
+          fontSize: "1.5rem",
+          lineHeight: 1.5,
+        },
+        "@media (max-width:400px)": {
+          fontSize: "1.25rem",
+          lineHeight: 1.6,
+        },
+      },
+      h4: {
+        fontFamily: ["Playfair Display", "Times New Roman", "Georgia", "serif"].join(","),
+        fontSize: "1.5rem",
+        fontWeight: 600,
+        lineHeight: 1.4,
+        letterSpacing: "0.01em",
+        "@media (max-width:600px)": {
+          fontSize: "1.25rem",
+          lineHeight: 1.5,
+        },
+        "@media (max-width:400px)": {
+          fontSize: "1.125rem",
+          lineHeight: 1.6,
+        },
+      },
+      h5: {
+        fontFamily: ["Lora", "Times New Roman", "Georgia", "serif"].join(","),
+        fontSize: "1.25rem",
+        fontWeight: 500,
+        lineHeight: 1.5,
+        letterSpacing: "0em",
+        "@media (max-width:600px)": {
+          fontSize: "1.125rem",
+          lineHeight: 1.6,
+        },
+        "@media (max-width:400px)": {
+          fontSize: "1rem",
+          lineHeight: 1.6,
+        },
+      },
+      h6: {
+        fontFamily: ["Lora", "Times New Roman", "Georgia", "serif"].join(","),
+        fontSize: "1.125rem",
+        fontWeight: 500,
+        lineHeight: 1.6,
+        letterSpacing: "0.01em",
+        "@media (max-width:600px)": {
+          fontSize: "1rem",
+          lineHeight: 1.6,
+        },
+        "@media (max-width:400px)": {
+          fontSize: "0.9rem",
+          lineHeight: 1.6,
+        },
+      },
+
+      // Body text - Readable serif
+      body1: {
+        fontFamily: ["Lora", "Times New Roman", "Georgia", "serif"].join(","),
+        fontSize: "1rem",
+        lineHeight: 1.6,
+        letterSpacing: "0.01em",
+        "@media (max-width:600px)": {
+          fontSize: "0.95rem",
+          lineHeight: 1.7,
+        },
+        "@media (max-width:400px)": {
+          fontSize: "0.9rem",
+          lineHeight: 1.7,
+        },
+      },
+      body2: {
+        fontFamily: ["Lora", "Times New Roman", "Georgia", "serif"].join(","),
+        fontSize: "0.875rem",
+        lineHeight: 1.5,
+        letterSpacing: "0.01em",
+        "@media (max-width:600px)": {
+          fontSize: "0.85rem",
+          lineHeight: 1.6,
+        },
+        "@media (max-width:400px)": {
+          fontSize: "0.8rem",
+          lineHeight: 1.6,
+        },
+      },
+
+      // UI elements - Clean sans-serif for contrast
+      button: {
+        fontFamily: ["Source Sans Pro", "Arial", "sans-serif"].join(","),
+        fontWeight: 600,
+        fontSize: "0.875rem",
+        lineHeight: 1.75,
+        letterSpacing: "0.05em",
+        textTransform: "uppercase",
+        "@media (max-width:600px)": {
+          fontSize: "0.8rem",
+          letterSpacing: "0.03em",
+        },
+        "@media (max-width:400px)": {
+          fontSize: "0.75rem",
+          letterSpacing: "0.02em",
+        },
+      },
+      caption: {
+        fontFamily: ["Source Sans Pro", "Arial", "sans-serif"].join(","),
+        fontSize: "0.75rem",
+        lineHeight: 1.4,
+        letterSpacing: "0.03em",
+        fontStyle: "italic",
+        "@media (max-width:600px)": {
+          fontSize: "0.7rem",
+          lineHeight: 1.5,
+        },
+        "@media (max-width:400px)": {
+          fontSize: "0.65rem",
+          lineHeight: 1.5,
+        },
+      },
+    },
+    components: {
+      // Elegant button styling
+      MuiButton: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            borderRadius: "4px",
+            textTransform: "uppercase",
+            fontWeight: 600,
+            letterSpacing: "0.05em",
+            padding: "12px 24px",
+            minHeight: "44px", // Ensure minimum touch target size
+            "@media (max-width:600px)": {
+              padding: "10px 20px",
+              minHeight: "44px",
+              fontSize: "0.8rem",
+            },
+            "@media (max-width:400px)": {
+              padding: "8px 16px",
+              minHeight: "44px",
+              fontSize: "0.75rem",
+            },
+            boxShadow: theme.palette.mode === "dark"
+              ? "0 2px 8px rgba(0,0,0,0.3)"
+              : "0 2px 8px rgba(0,0,0,0.1)",
+            border: "2px solid transparent",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            "&:hover": {
+              boxShadow: theme.palette.mode === "dark"
+                ? "0 4px 16px rgba(0,0,0,0.4)"
+                : "0 4px 16px rgba(0,0,0,0.12)",
+              transform: "translateY(-1px)",
+            },
+          }),
+          contained: ({ theme }) => ({
+            "&:hover": {
+              boxShadow: theme.palette.mode === "dark"
+                ? "0 6px 20px rgba(0,0,0,0.4)"
+                : "0 6px 20px rgba(0,0,0,0.15)",
+            },
+          }),
+          outlined: ({ theme }) => ({
+            borderWidth: "2px",
+            "&:hover": {
+              borderWidth: "2px",
+              backgroundColor: theme.palette.mode === "dark"
+                ? "rgba(218, 165, 32, 0.1)"
+                : "rgba(0,0,0,0.04)",
+            },
+          }),
+        },
+      },
+
+      // Classic card styling
+      MuiCard: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            borderRadius: "8px",
+            boxShadow: theme.palette.mode === "dark"
+              ? "0 2px 8px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3)"
+              : "0 2px 8px rgba(0,0,0,0.1)",
+            border: theme.palette.mode === "dark"
+              ? "1px solid rgba(255,255,255,0.08)"
+              : "1px solid rgba(0,0,0,0.08)",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            "&:hover": {
+              boxShadow: theme.palette.mode === "dark"
+                ? "0 8px 24px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.4)"
+                : "0 8px 24px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.12)",
+              transform: "translateY(-2px)",
+            },
+          }),
+        },
+      },
+
+      // Refined input styling
+      MuiTextField: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "6px",
+              backgroundColor: theme.palette.mode === "dark"
+                ? theme.palette.background.alt
+                : "rgba(255,255,255,0.8)",
+              transition: "all 0.3s ease",
+              "&:hover": {
+                backgroundColor: theme.palette.mode === "dark"
+                  ? theme.palette.background.paper
+                  : "rgba(255,255,255,0.9)",
+              },
+              "&.Mui-focused": {
+                backgroundColor: theme.palette.mode === "dark"
+                  ? theme.palette.background.paper
+                  : "#ffffff",
+                boxShadow: theme.palette.mode === "dark"
+                  ? `0 0 0 3px ${theme.palette.primary.main}30`
+                  : "0 0 0 3px rgba(184, 134, 11, 0.1)",
+              },
+            },
+          }),
+        },
+      },
+
+      // Typography enhancements
+      MuiTypography: {
+        styleOverrides: {
+          h1: {
+            background: `linear-gradient(45deg, #DAA520, #A0522D)`,
+            backgroundClip: "text",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            textShadow: "none",
+          },
+          h2: {
+            color: "#A0522D",
+          },
+        },
+      },
+
+      // Paper styling for elegant backgrounds
+      MuiPaper: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            backgroundImage: "none",
+            borderRadius: "8px",
+            backgroundColor: theme.palette.mode === "dark"
+              ? theme.palette.background.paper
+              : undefined,
+          }),
+          elevation1: {
+            boxShadow: ({ theme }) => theme.palette.mode === "dark"
+              ? "0 2px 8px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2)"
+              : "0 2px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)",
+          },
+          elevation2: {
+            boxShadow: ({ theme }) => theme.palette.mode === "dark"
+              ? "0 4px 12px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3)"
+              : "0 4px 12px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.08)",
+          },
+        },
+      },
+
+      // Icon button touch targets for mobile
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            minWidth: "44px",
+            minHeight: "44px",
+            padding: "12px",
+            "@media (max-width:600px)": {
+              minWidth: "44px",
+              minHeight: "44px",
+              padding: "10px",
+            },
+            "@media (max-width:400px)": {
+              minWidth: "44px",
+              minHeight: "44px",
+              padding: "8px",
+            },
+          },
+        },
       },
     },
   };
