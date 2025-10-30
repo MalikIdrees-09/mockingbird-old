@@ -48,7 +48,7 @@ export default function ChatWindow({ conversationId, recipientId }) {
   useEffect(() => {
     if (!conversationId || !token) return;
     (async () => {
-      const res = await fetch(`${API_BASE_URL}/messages/${conversationId}/messages?limit=50`, {
+      const res = await fetch(`https://backend-server-453975176199.us-central1.run.app/messages/${conversationId}/messages?limit=50`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -63,7 +63,7 @@ export default function ChatWindow({ conversationId, recipientId }) {
     if (text.trim()) form.append("content", text.trim());
     files.forEach(f => form.append("media", f));
 
-    const res = await fetch(`${API_BASE_URL}/messages`, {
+    const res = await fetch(`https://backend-server-453975176199.us-central1.run.app/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
@@ -82,7 +82,7 @@ export default function ChatWindow({ conversationId, recipientId }) {
   };
 
   const saveEdit = async (messageId) => {
-    const res = await fetch(`${API_BASE_URL}/messages/message/${messageId}`, {
+    const res = await fetch(`https://backend-server-453975176199.us-central1.run.app/messages/message/${messageId}`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ content: editingText })
@@ -97,7 +97,7 @@ export default function ChatWindow({ conversationId, recipientId }) {
   };
 
   const deleteMsg = async (messageId) => {
-    const res = await fetch(`${API_BASE_URL}/messages/message/${messageId}`, {
+    const res = await fetch(`https://backend-server-453975176199.us-central1.run.app/messages/message/${messageId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -303,7 +303,7 @@ export default function ChatWindow({ conversationId, recipientId }) {
                 const form = new FormData();
                 form.append('recipientId', recipientId);
                 form.append('media', file);
-                const res = await fetch(`${API_BASE_URL}/messages`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
+                const res = await fetch(`https://backend-server-453975176199.us-central1.run.app/messages`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
                 if (res.ok) {
                   const saved = await res.json();
                   dispatch(addMessageToConversation({ conversationId: saved.conversationId, message: saved }));
