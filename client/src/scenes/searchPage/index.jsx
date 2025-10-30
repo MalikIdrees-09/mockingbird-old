@@ -52,10 +52,10 @@ const SearchPage = () => {
       });
 
       if (type === "users") {
-        endpoint = `http://localhost:5000/users/search?${params}`;
+        endpoint = `https://mockingbird-server-453975176199.asia-south1.run.app//users/search?${params}`;
       } else if (type === "posts") {
         params.append("type", "all");
-        endpoint = `http://localhost:5000/posts/search?${params}`;
+        endpoint = `https://mockingbird-server-453975176199.asia-south1.run.app//posts/search?${params}`;
       }
 
       const response = await fetch(endpoint, {
@@ -122,10 +122,10 @@ const SearchPage = () => {
       });
 
       if (searchType === "users") {
-        endpoint = `http://localhost:5000/users/search?${params}`;
+        endpoint = `https://mockingbird-server-453975176199.asia-south1.run.app//users/search?${params}`;
       } else if (searchType === "posts") {
         params.append("type", "all");
-        endpoint = `http://localhost:5000/posts/search?${params}`;
+        endpoint = `https://mockingbird-server-453975176199.asia-south1.run.app//posts/search?${params}`;
       }
 
       const response = await fetch(endpoint, {

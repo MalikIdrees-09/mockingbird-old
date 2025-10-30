@@ -50,7 +50,7 @@ const PostManagement = ({ userId }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:5000/admin/posts?page=${page}&includeDeleted=${includeDeleted}`,
+        `https://mockingbird-server-453975176199.asia-south1.run.app//admin/posts?page=${page}&includeDeleted=${includeDeleted}`,
         {
           method: "GET",
           headers: {
@@ -79,7 +79,7 @@ const PostManagement = ({ userId }) => {
 
   const handleDeletePost = async (post) => {
     try {
-      const response = await fetch(`http://localhost:5000/admin/posts/${post._id}/delete`, {
+      const response = await fetch(`https://mockingbird-server-453975176199.asia-south1.run.app//admin/posts/${post._id}/delete`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -112,7 +112,7 @@ const PostManagement = ({ userId }) => {
 
   const handleDeleteComment = async (postId, commentIndex) => {
     try {
-      const response = await fetch(`http://localhost:5000/admin/posts/${postId}/moderate-comment`, {
+      const response = await fetch(`https://mockingbird-server-453975176199.asia-south1.run.app//admin/posts/${postId}/moderate-comment`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -214,7 +214,7 @@ const PostManagement = ({ userId }) => {
                   <CardMedia
                     component="img"
                     height="140"
-                    image={`http://localhost:5000/assets/${post.picturePath}`}
+                    image={`https://mockingbird-server-453975176199.asia-south1.run.app//assets/${post.picturePath}`}
                     alt="Post image"
                     sx={{ objectFit: "cover" }}
                   />
@@ -223,7 +223,7 @@ const PostManagement = ({ userId }) => {
                   {/* Post Header */}
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <Avatar
-                      src={post.userPicturePath ? `http://localhost:5000/assets/${post.userPicturePath}` : undefined}
+                      src={post.userPicturePath ? `https://mockingbird-server-453975176199.asia-south1.run.app//assets/${post.userPicturePath}` : undefined}
                       sx={{ mr: 2 }}
                     >
                       {post.firstName[0]}{post.lastName[0]}

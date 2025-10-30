@@ -27,7 +27,7 @@ const NotificationBell = () => {
     if (!token) return;
 
     try {
-      const response = await fetch("http://localhost:5000/notifications/unread-count", {
+      const response = await fetch("https://mockingbird-server-453975176199.asia-south1.run.app//notifications/unread-count", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,

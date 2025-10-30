@@ -32,7 +32,7 @@ const NotificationDropdown = ({ onClose, onUnreadCountChange }) => {
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:5000/notifications?page=${page}&limit=10`,
+        `https://mockingbird-server-453975176199.asia-south1.run.app//notifications?page=${page}&limit=10`,
         {
           method: "GET",
           headers: {
@@ -64,7 +64,7 @@ const NotificationDropdown = ({ onClose, onUnreadCountChange }) => {
 
     try {
       setMarkingAllRead(true);
-      const response = await fetch("http://localhost:5000/notifications/mark-all-read", {
+      const response = await fetch("https://mockingbird-server-453975176199.asia-south1.run.app//notifications/mark-all-read", {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
