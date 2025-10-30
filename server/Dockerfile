@@ -1,7 +1,7 @@
 # Use Node.js 20 Alpine as base image
-FROM node:20-alpine
+FROM node:20-alpine  
 
-# Set working directory
+# Set working 
 WORKDIR /app
 
 # Copy package files
