@@ -52,10 +52,10 @@ const SearchPage = () => {
       });
 
       if (type === "users") {
-        endpoint = `https://mockingbird-backend.idrees.inusers/search?${params}`;
+        endpoint = `https://mockingbird-backend.idrees.in/users/search?${params}`;
       } else if (type === "posts") {
         params.append("type", "all");
-        endpoint = `https://mockingbird-backend.idrees.inposts/search?${params}`;
+        endpoint = `https://mockingbird-backend.idrees.in/posts/search?${params}`;
       }
 
       const response = await fetch(endpoint, {
@@ -122,10 +122,10 @@ const SearchPage = () => {
       });
 
       if (searchType === "users") {
-        endpoint = `https://mockingbird-backend.idrees.inusers/search?${params}`;
+        endpoint = `https://mockingbird-backend.idrees.in/users/search?${params}`;
       } else if (searchType === "posts") {
         params.append("type", "all");
-        endpoint = `https://mockingbird-backend.idrees.inposts/search?${params}`;
+        endpoint = `https://mockingbird-backend.idrees.in/posts/search?${params}`;
       }
 
       const response = await fetch(endpoint, {

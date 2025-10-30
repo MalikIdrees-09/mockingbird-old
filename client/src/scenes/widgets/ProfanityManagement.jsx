@@ -61,7 +61,7 @@ const ProfanityManagement = ({ userId }) => {
   const getProfanityLogs = useCallback(async () => {
     try {
       const response = await fetch(
-        `https://mockingbird-backend.idrees.inprofanity/logs?page=${page}`,
+        `https://mockingbird-backend.idrees.in/profanity/logs?page=${page}`,
         {
           method: "GET",
           headers: {
@@ -91,7 +91,7 @@ const ProfanityManagement = ({ userId }) => {
   const getProfanityStats = useCallback(async () => {
     try {
       const response = await fetch(
-        `https://mockingbird-backend.idrees.inprofanity/stats`,
+        `https://mockingbird-backend.idrees.in/profanity/stats`,
         {
           method: "GET",
           headers: {
@@ -118,7 +118,7 @@ const ProfanityManagement = ({ userId }) => {
   const handleReview = async () => {
     try {
       const response = await fetch(
-        `https://mockingbird-backend.idrees.inprofanity/logs/${selectedLog._id}/review`,
+        `https://mockingbird-backend.idrees.in/profanity/logs/${selectedLog._id}/review`,
         {
           method: "PATCH",
           headers: {
@@ -155,7 +155,7 @@ const ProfanityManagement = ({ userId }) => {
   const handleTakeAction = async () => {
     try {
       const response = await fetch(
-        `https://mockingbird-backend.idrees.inprofanity/logs/${selectedLog._id}/action`,
+        `https://mockingbird-backend.idrees.in/profanity/logs/${selectedLog._id}/action`,
         {
           method: "PATCH",
           headers: {

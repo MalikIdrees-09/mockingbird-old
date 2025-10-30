@@ -20,7 +20,7 @@ export default function ChatPage() {
   const [recipientId, setRecipientId] = useState(null);
 
   const fetchConversations = async () => {
-    const res = await fetch(`https://mockingbird-backend.idrees.inmessages/conversations`, {
+    const res = await fetch(`https://mockingbird-backend.idrees.in/messages/conversations`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -50,7 +50,7 @@ export default function ChatPage() {
   const [friendSearch, setFriendSearch] = useState("");
 
   const startConversation = async (recipientId) => {
-    const res = await fetch(`https://mockingbird-backend.idrees.inmessages/conversations`, {
+    const res = await fetch(`https://mockingbird-backend.idrees.in/messages/conversations`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ recipientId }),

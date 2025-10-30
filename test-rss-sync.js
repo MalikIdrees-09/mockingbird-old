@@ -4,21 +4,21 @@ async function testRSSSync() {
 
     // Test 1: Check RSS status
     console.log('📊 Checking RSS sync status...');
-    const statusResponse = await fetch('https://mockingbird-backend.idrees.inapi/rss/status');
+    const statusResponse = await fetch('https://mockingbird-backend.idrees.in/api/rss/status');
     const statusData = await statusResponse.json();
     console.log('✅ Status:', JSON.stringify(statusData, null, 2));
     console.log('');
 
     // Test 2: Test RSS feed parsing
     console.log('🧪 Testing RSS feed parsing...');
-    const testResponse = await fetch('https://mockingbird-backend.idrees.inapi/rss/test');
+    const testResponse = await fetch('https://mockingbird-backend.idrees.in/api/rss/test');
     const testData = await testResponse.json();
     console.log('✅ Test result:', JSON.stringify(testData, null, 2));
     console.log('');
 
     // Test 3: Manual sync
     console.log('🔄 Triggering manual RSS sync...');
-    const syncResponse = await fetch('https://mockingbird-backend.idrees.inapi/rss/sync', {
+    const syncResponse = await fetch('https://mockingbird-backend.idrees.in/api/rss/sync', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

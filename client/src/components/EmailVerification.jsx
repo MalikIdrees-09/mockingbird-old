@@ -41,7 +41,7 @@ const EmailVerification = ({ email, onBackToLogin }) => {
     setError("");
 
     try {
-      const response = await fetch("https://mockingbird-backend.idrees.inauth/verify-email", {
+      const response = await fetch("https://mockingbird-backend.idrees.in/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
@@ -78,7 +78,7 @@ const EmailVerification = ({ email, onBackToLogin }) => {
     setError("");
 
     try {
-      const response = await fetch("https://mockingbird-backend.idrees.inauth/resend-verification", {
+      const response = await fetch("https://mockingbird-backend.idrees.in/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

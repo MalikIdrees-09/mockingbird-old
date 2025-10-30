@@ -32,7 +32,7 @@ const NotificationDropdown = ({ onClose, onUnreadCountChange }) => {
     try {
       setLoading(true);
       const response = await fetch(
-        `https://mockingbird-backend.idrees.innotifications?page=${page}&limit=10`,
+        `https://mockingbird-backend.idrees.in/notifications?page=${page}&limit=10`,
         {
           method: "GET",
           headers: {
@@ -64,7 +64,7 @@ const NotificationDropdown = ({ onClose, onUnreadCountChange }) => {
 
     try {
       setMarkingAllRead(true);
-      const response = await fetch("https://mockingbird-backend.idrees.innotifications/mark-all-read", {
+      const response = await fetch("https://mockingbird-backend.idrees.in/notifications/mark-all-read", {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,

@@ -35,7 +35,7 @@ async function testRSS() {
     for (const article of articles.slice(0, 1)) {
       try {
         console.log(`🔍 Extracting preview for: ${article.link}`);
-        const response = await axios.get(`https://mockingbird-backend.idrees.inposts/link-preview`, {
+        const response = await axios.get(`https://mockingbird-backend.idrees.in/posts/link-preview`, {
           data: { url: article.link }
         }, {
           headers: { 'Content-Type': 'application/json' }
@@ -51,8 +51,8 @@ async function testRSS() {
     console.log('\n🎉 RSS system test completed successfully!');
     console.log('\n📋 Next steps:');
     console.log('1. Start the server: npm run dev');
-    console.log('2. Check RSS status: curl https://mockingbird-backend.idrees.inapi/rss/status');
-    console.log('3. Test RSS sync: curl -X POST https://mockingbird-backend.idrees.inapi/rss/sync');
+    console.log('2. Check RSS status: curl https://mockingbird-backend.idrees.in/api/rss/status');
+    console.log('3. Test RSS sync: curl -X POST https://mockingbird-backend.idrees.in/api/rss/sync');
     console.log('4. View news posts in the feed!');
 
   } catch (error) {

@@ -96,7 +96,7 @@ const Form = () => {
 
       console.log("Sending registration request...");
       const savedUserResponse = await fetch(
-        "https://mockingbird-backend.idrees.inauth/register",
+        "https://mockingbird-backend.idrees.in/auth/register",
         {
           method: "POST",
           body: formData,
@@ -129,7 +129,7 @@ const Form = () => {
   const login = async (values, onSubmitProps) => {
     try {
       console.log("Attempting login with:", values);
-      const response = await fetch("https://mockingbird-backend.idrees.inauth/login", {
+      const response = await fetch("https://mockingbird-backend.idrees.in/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
@@ -178,7 +178,7 @@ const Form = () => {
     setResetLoading(true);
 
     try {
-      const response = await fetch("https://mockingbird-backend.idrees.inauth/request-password-reset", {
+      const response = await fetch("https://mockingbird-backend.idrees.in/auth/request-password-reset", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

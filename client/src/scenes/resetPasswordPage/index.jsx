@@ -91,7 +91,7 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("https://mockingbird-backend.idrees.inauth/reset-password", {
+      const response = await fetch("https://mockingbird-backend.idrees.in/auth/reset-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

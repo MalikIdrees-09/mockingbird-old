@@ -27,7 +27,7 @@ const BannedUserDialog = ({ open, onClose, banInfo }) => {
 
     setSubmittingAppeal(true);
     try {
-      const response = await fetch("https://mockingbird-backend.idrees.inauth/submit-appeal", {
+      const response = await fetch("https://mockingbird-backend.idrees.in/auth/submit-appeal", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -61,7 +61,7 @@ const NotificationItem = ({ notification, onRead, onDelete }) => {
 
     try {
       const response = await fetch(
-        `https://mockingbird-backend.idrees.innotifications/${notification._id}/read`,
+        `https://mockingbird-backend.idrees.in/notifications/${notification._id}/read`,
         {
           method: "PATCH",
           headers: {
@@ -90,7 +90,7 @@ const NotificationItem = ({ notification, onRead, onDelete }) => {
 
     try {
       const response = await fetch(
-        `https://mockingbird-backend.idrees.innotifications/${notification._id}`,
+        `https://mockingbird-backend.idrees.in/notifications/${notification._id}`,
         {
           method: "DELETE",
           headers: {
