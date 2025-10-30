@@ -99,6 +99,10 @@ const Friend = ({
       );
       
       if (response.ok) {
+        // Clear pending request indicators
+        dispatch(removeFriendRequest({ userId: friendId }));
+        dispatch(removeSentFriendRequest({ userId: friendId }));
+
         // Update friends list
         const friendsResponse = await fetch(`${API_BASE_URL}/users/${_id}/friends`, {
           method: "GET",
@@ -138,6 +142,7 @@ const Friend = ({
       
       if (response.ok) {
         dispatch(removeFriendRequest({ userId: friendId }));
+        dispatch(removeSentFriendRequest({ userId: friendId }));
         if (onFriendAction) {
           onFriendAction('rejected', friendId);
         }
