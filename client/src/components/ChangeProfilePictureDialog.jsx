@@ -13,7 +13,7 @@ import {
   IconButton,
 } from "@mui/material";
 import { PhotoCamera, Delete, Close, ZoomIn, ZoomOut, Crop } from "@mui/icons-material";
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setLogin } from "state";
 import Dropzone from "react-dropzone";
@@ -27,6 +27,25 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
   const [uploading, setUploading] = useState(false);
   const token = useSelector((state) => state.token);
   const dispatch = useDispatch();
+
+  // State for cropped preview
+  const [croppedPreview, setCroppedPreview] = useState(null);
+
+  // State to force re-renders of profile pictures
+  const [profilePictureKey, setProfilePictureKey] = useState(Date.now());
+
+  // Listen for profile picture updates
+  React.useEffect(() => {
+    const handleProfilePictureUpdate = () => {
+      setProfilePictureKey(Date.now());
+    };
+
+    window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate);
+
+    return () => {
+      window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate);
+    };
+  }, []);
 
   // Cropping states
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -87,22 +106,35 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !croppedAreaPixels) return;
+    if (!selectedFile) return;
 
     setUploading(true);
     try {
-      // Get cropped image
-      const croppedImageBlob = await getCroppedImg(preview, croppedAreaPixels);
+      let croppedImageBlob;
 
-      // Create file from blob
-      const croppedFile = new File([croppedImageBlob], selectedFile.name, {
-        type: 'image/jpeg',
+      // Use cropped preview if available, otherwise create cropped image
+      if (croppedPreview) {
+        // Convert the preview URL back to a blob
+        const response = await fetch(croppedPreview);
+        croppedImageBlob = await response.blob();
+      } else if (croppedAreaPixels) {
+        // Create cropped image from original
+        croppedImageBlob = await getCroppedImg(preview, croppedAreaPixels);
+      } else {
+        // No cropping, use original file
+        croppedImageBlob = selectedFile;
+      }
+
+      // Create file from blob with cache-busting timestamp
+      const timestamp = Date.now();
+      const croppedFile = new File([croppedImageBlob], `${timestamp}_${selectedFile.name}`, {
+        type: croppedImageBlob.type || 'image/jpeg',
       });
 
       const formData = new FormData();
       formData.append("picture", croppedFile);
 
-      const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/users/${userId}/profile-picture`, {
+      const response = await fetch(`http://localhost:5000/users/${userId}/profile-picture`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -113,7 +145,7 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
       if (response.ok) {
         const updatedUser = await response.json();
 
-        // Update Redux state with new user data
+        // Update Redux state with new user data and cache-busting timestamp
         dispatch(setLogin({
           user: updatedUser,
           token: token,
@@ -122,8 +154,11 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
         // Close dialog and reset state
         handleClose();
 
-        // Show success message (you can add a snackbar here)
+        // Show success message
         console.log("Profile picture updated successfully!");
+
+        // Force refresh of all components by dispatching a custom event
+        window.dispatchEvent(new CustomEvent('profilePictureUpdated'));
       } else {
         throw new Error("Failed to update profile picture");
       }
@@ -138,7 +173,7 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
   const handleRemove = async () => {
     setUploading(true);
     try {
-      const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/users/${userId}/profile-picture`, {
+      const response = await fetch(`http://localhost:5000/users/${userId}/profile-picture`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -154,6 +189,9 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
           user: updatedUser,
           token: token,
         }));
+
+        // Dispatch event to force re-render of all components
+        window.dispatchEvent(new CustomEvent('profilePictureUpdated'));
 
         handleClose();
         console.log("Profile picture removed successfully!");
@@ -175,6 +213,11 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     setCroppedAreaPixels(null);
+    // Clear cropped preview
+    if (croppedPreview) {
+      URL.revokeObjectURL(croppedPreview);
+      setCroppedPreview(null);
+    }
     onClose();
   };
 
@@ -216,7 +259,7 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
           {/* Current Picture Preview */}
           {!showCropper && (
             <Avatar
-              src={currentPicture ? `https://mockingbird-backend-453975176199.us-central1.run.app/assets/${currentPicture}` : undefined}
+              src={croppedPreview || (currentPicture ? `http://localhost:5000/assets/${currentPicture}?v=${profilePictureKey}` : undefined)}
               sx={{
                 width: 120,
                 height: 120,
@@ -290,13 +333,29 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
                     setShowCropper(false);
                     setSelectedFile(null);
                     setPreview(null);
+                    // Clear cropped preview
+                    if (croppedPreview) {
+                      URL.revokeObjectURL(croppedPreview);
+                      setCroppedPreview(null);
+                    }
                   }}
                 >
                   Cancel Crop
                 </Button>
                 <Button
                   variant="contained"
-                  onClick={() => setShowCropper(false)}
+                  onClick={async () => {
+                    if (croppedAreaPixels) {
+                      try {
+                        const croppedImageBlob = await getCroppedImg(preview, croppedAreaPixels);
+                        const croppedPreviewUrl = URL.createObjectURL(croppedImageBlob);
+                        setCroppedPreview(croppedPreviewUrl);
+                      } catch (error) {
+                        console.error("Error creating cropped preview:", error);
+                      }
+                    }
+                    setShowCropper(false);
+                  }}
                   disabled={!croppedAreaPixels}
                 >
                   Apply Crop

@@ -61,7 +61,7 @@ const NotificationItem = ({ notification, onRead, onDelete }) => {
 
     try {
       const response = await fetch(
-        `https://mockingbird-backend-453975176199.us-central1.run.app/notifications/${notification._id}/read`,
+        `http://localhost:5000/notifications/${notification._id}/read`,
         {
           method: "PATCH",
           headers: {
@@ -90,7 +90,7 @@ const NotificationItem = ({ notification, onRead, onDelete }) => {
 
     try {
       const response = await fetch(
-        `https://mockingbird-backend-453975176199.us-central1.run.app/notifications/${notification._id}`,
+        `http://localhost:5000/notifications/${notification._id}`,
         {
           method: "DELETE",
           headers: {

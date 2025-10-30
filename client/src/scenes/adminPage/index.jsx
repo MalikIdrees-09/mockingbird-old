@@ -54,7 +54,7 @@ const AdminPage = () => {
 
       <Box
         width="100%"
-        padding="2rem 6%"
+        sx={{ p: { xs: '1rem', md: '2rem 6%' } }}
         display={isNonMobileScreens ? "flex" : "block"}
         gap="2rem"
         justifyContent="space-between"

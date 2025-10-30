@@ -4,6 +4,7 @@ import ProfanityLog from "../models/ProfanityLog.js";
 import { createNotification } from "./notifications.js";
 import profanityFilter from "../utils/profanityFilter.js";
 import { processPostImage, cleanupTempFiles } from "../utils/imageProcessor.js";
+import { extractUrlsFromText, extractLinkMetadata } from "../utils/linkPreview.js";
 import path from "path";
 
 /* UTILITY FUNCTIONS */
@@ -25,6 +26,33 @@ const appendProphetRespect = (text) => {
   });
 
   return processedText;
+};
+
+const USER_FIELDS = "_id firstName lastName picturePath location isVerified isAdmin bio";
+
+const buildPostsQuery = (filter = {}) => {
+  const query = { isDeleted: { $ne: true }, ...filter };
+
+  return Post.find(query)
+    .populate({
+      path: "userId",
+      select: USER_FIELDS,
+      match: { isBanned: { $ne: true } },
+    })
+    .populate({
+      path: "repostOf",
+      populate: {
+        path: "userId",
+        select: USER_FIELDS,
+        match: { isBanned: { $ne: true } },
+      },
+    })
+    .sort({ pinned: -1, pinnedAt: -1, createdAt: -1 });
+};
+
+const fetchPosts = async (filter = {}) => {
+  const posts = await buildPostsQuery(filter);
+  return posts.filter((post) => post.userId !== null);
 };
 
 /* CREATE */
@@ -87,54 +115,68 @@ export const createPost = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Handle multiple media files
+    // Handle media files - support both single and multiple files
+    let finalMediaPath = null;
+    let finalMediaType = null;
+    let mediaSize = null;
     let finalMediaPaths = [];
     let finalMediaTypes = [];
     let finalMediaSizes = [];
+    let finalMediaDurations = [];
     let tempFilesToClean = [];
 
     if (req.files && req.files.length > 0) {
-      console.log(`Processing ${req.files.length} uploaded files...`);
+      console.log(`📁 Processing ${req.files.length} media file(s)...`);
       
-      for (const file of req.files) {
-        const uploadedPath = path.join("/assets", file.filename);
-        
-        // For now, assume all files are images (we can extend this later for different media types)
-        const mediaType = 'image'; // Default to image, can be extended
-        
-        if (mediaType === 'image') {
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        const uploadedPath = path.join("public/assets", file.filename);
+        const fileMediaType = mediaType || 'image'; // Default to image if not specified
+
+        if (fileMediaType === 'image') {
           // Process image for compression and resizing
-          console.log(`🖼️ Processing image: ${file.filename}`);
+          console.log(`🖼️ Processing image ${i + 1}/${req.files.length} for optimization...`);
           const processedImage = await processPostImage(uploadedPath);
 
           if (processedImage.processedPath !== uploadedPath) {
             // Image was processed and optimized
             finalMediaPaths.push(path.basename(processedImage.processedPath));
-            finalMediaTypes.push(mediaType);
             finalMediaSizes.push(processedImage.processedSize);
 
             // Mark original file for cleanup
             tempFilesToClean.push(uploadedPath);
 
-            console.log(`✅ Image optimized: ${processedImage.compressionRatio}% of original size`);
+            console.log(`✅ Image ${i + 1} optimized: ${processedImage.compressionRatio}% of original size`);
           } else {
             // Processing failed, use original
             finalMediaPaths.push(file.filename);
-            finalMediaTypes.push(mediaType);
             finalMediaSizes.push(file.size);
-            console.log("⚠️ Image processing failed, using original file");
+            console.log(`⚠️ Image ${i + 1} processing failed, using original file`);
           }
         } else {
-          // Non-image media (can be extended later)
+          // Non-image media (audio, video) - keep as is
           finalMediaPaths.push(file.filename);
-          finalMediaTypes.push(mediaType);
           finalMediaSizes.push(file.size);
+          console.log(`📎 Non-image media ${i + 1} uploaded:`, file.filename, "Type:", fileMediaType);
         }
+        
+        finalMediaTypes.push(fileMediaType);
+        finalMediaDurations.push(null); // Will be set later if needed
+      }
+
+      // For backward compatibility, set single media fields from first file
+      if (finalMediaPaths.length > 0) {
+        finalMediaPath = finalMediaPaths[0];
+        finalMediaType = finalMediaTypes[0];
+        mediaSize = finalMediaSizes[0];
       }
     } else if (mediaPath) {
-      // Handle legacy single media path
+      // Handle legacy picturePath or direct media path
+      finalMediaPath = mediaPath;
+      finalMediaType = mediaType || 'image';
       finalMediaPaths = [mediaPath];
       finalMediaTypes = [mediaType || 'image'];
+      finalMediaSizes = [0]; // Unknown size for legacy
     }
 
     const postData = {
@@ -145,23 +187,114 @@ export const createPost = async (req, res) => {
       description: processedDescription || "",
       userPicturePath: user.picturePath,
       likes: {},
+      reactions: {},
       comments: [],
     };
 
-    // Add media arrays if media exists
+    // Add media fields if media exists
     if (finalMediaPaths.length > 0) {
+      // Multiple media (new format)
       postData.mediaPaths = finalMediaPaths;
       postData.mediaTypes = finalMediaTypes;
       postData.mediaSizes = finalMediaSizes;
-      
-      // For backward compatibility, also set the first media as the primary media
-      postData.mediaPath = finalMediaPaths[0];
-      postData.mediaType = finalMediaTypes[0];
-      postData.mediaSize = finalMediaSizes[0];
-      
+      postData.mediaDurations = finalMediaDurations;
+
+      // For backward compatibility, also set single media fields from first file
+      if (finalMediaPath && finalMediaType) {
+        postData.mediaPath = finalMediaPath;
+        postData.mediaType = finalMediaType;
+        if (mediaSize) {
+          postData.mediaSize = mediaSize;
+        }
+
+        // For backward compatibility, also set picturePath for images
+        if (finalMediaType === 'image') {
+          postData.picturePath = finalMediaPath;
+        }
+      }
+    } else if (finalMediaPath && finalMediaType) {
+      // Single media (legacy format)
+      postData.mediaPath = finalMediaPath;
+      postData.mediaType = finalMediaType;
+      if (mediaSize) {
+        postData.mediaSize = mediaSize;
+      }
+
       // For backward compatibility, also set picturePath for images
-      if (finalMediaTypes[0] === 'image') {
-        postData.picturePath = finalMediaPaths[0];
+      if (finalMediaType === 'image') {
+        postData.picturePath = finalMediaPath;
+      }
+    }
+
+    // Extract and store link previews
+    if (processedDescription) {
+      const urls = extractUrlsFromText(processedDescription);
+      if (urls.length > 0) {
+        console.log(`🔗 Found ${urls.length} URL(s) in post, extracting previews...`);
+        postData.linkPreviews = [];
+
+        // Remove URLs from description to avoid duplication
+        let cleanDescription = processedDescription;
+        console.log(`🔍 Original description: "${processedDescription}"`);
+        console.log(`🔗 Detected URLs:`, urls);
+
+        urls.forEach((url, index) => {
+          // Try multiple approaches to remove the URL
+          const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+          // First try exact match
+          let before = cleanDescription;
+          cleanDescription = cleanDescription.replace(new RegExp(escapedUrl, 'gi'), '').trim();
+          console.log(`  URL ${index + 1} removal attempt 1: "${before}" → "${cleanDescription}"`);
+
+          // If URL still exists, try with simplified patterns
+          const urlWithoutProtocol = url.replace(/^https?:\/\//, '');
+          if (cleanDescription.includes(urlWithoutProtocol)) {
+            before = cleanDescription;
+            cleanDescription = cleanDescription.replace(new RegExp(urlWithoutProtocol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '').trim();
+            console.log(`  URL ${index + 1} removal attempt 2: "${before}" → "${cleanDescription}"`);
+          }
+
+          const urlWithoutWww = url.replace(/^https?:\/\/(?:www\.)?/, '');
+          if (cleanDescription.includes(urlWithoutWww)) {
+            before = cleanDescription;
+            cleanDescription = cleanDescription.replace(new RegExp(urlWithoutWww.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '').trim();
+            console.log(`  URL ${index + 1} removal attempt 3: "${before}" → "${cleanDescription}"`);
+          }
+        });
+
+        // Clean up any double spaces or trailing commas left after URL removal
+        cleanDescription = cleanDescription.replace(/\s+/g, ' ').replace(/,\s*,/g, ',').replace(/^,|,$/g, '').trim();
+
+        // Only update description if URLs were actually removed
+        if (cleanDescription !== processedDescription) {
+          postData.description = cleanDescription || processedDescription;
+          console.log(`🧹 Cleaned description: "${processedDescription}" → "${cleanDescription}"`);
+        } else {
+          console.log(`⚠️ No URLs removed, keeping original: "${processedDescription}"`);
+        }
+
+        for (const url of urls.slice(0, 3)) { // Limit to 3 previews per post
+          try {
+            const metadata = await extractLinkMetadata(url);
+            if (metadata) {
+              postData.linkPreviews.push({
+                url,
+                title: metadata.title,
+                description: metadata.description,
+                image: metadata.image,
+                siteName: metadata.siteName,
+                favicon: metadata.favicon,
+              });
+              console.log(`✅ Link preview extracted for: ${url}`);
+            }
+          } catch (error) {
+            console.log(`⚠️ Failed to extract preview for: ${url}`);
+          }
+
+          // Small delay between requests to be respectful
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
     }
 
@@ -183,19 +316,122 @@ export const createPost = async (req, res) => {
   }
 };
 
+/* REPOST */
+export const repostPost = async (req, res) => {
+  try {
+    const postId = req.params.id || req.params.postId;
+    const { userId, comment = "" } = req.body;
+
+    console.log("repostPost received", { postId, userId, comment });
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const originalPost = postId ? await Post.findById(postId) : null;
+    if (!originalPost) {
+      console.warn("repostPost originalPost lookup returned null", { postId });
+    }
+    if (!originalPost || originalPost.isDeleted) {
+      return res.status(404).json({ message: "Original post not found" });
+    }
+
+    if (String(originalPost.userId) === String(userId)) {
+      return res.status(400).json({ message: "You cannot repost your own post" });
+    }
+
+    const alreadyReposted = await Post.findOne({ repostOf: postId, userId });
+    if (alreadyReposted) {
+      return res.status(400).json({ message: "You have already reposted this post" });
+    }
+
+    const repost = new Post({
+      userId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      location: user.location,
+      description: comment,
+      userPicturePath: user.picturePath,
+      likes: {},
+      reactions: {},
+      comments: [],
+      repostOf: originalPost._id,
+      repostComment: comment,
+    });
+
+    await repost.save();
+
+    if (String(originalPost.userId) !== String(userId)) {
+      await createNotification(
+        originalPost.userId,
+        userId,
+        "repost",
+        `${user.firstName} ${user.lastName} reposted your post`,
+        repost._id,
+        "post",
+        { originalPostId: postId }
+      );
+    }
+
+    const posts = await fetchPosts();
+
+    res.status(201).json(posts);
+  } catch (error) {
+    console.error("Error reposting post:", error);
+    res.status(500).json({ message: "Failed to repost" });
+  }
+};
+
+export const undoRepost = async (req, res) => {
+  try {
+    const postId = req.params.id || req.params.postId;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    const repost = postId ? await Post.findOne({ _id: postId, userId, repostOf: { $ne: null } }) : null;
+    if (!repost) {
+      return res.status(404).json({ message: "Repost not found" });
+    }
+
+    await Post.deleteOne({ _id: repost._id });
+
+    const posts = await fetchPosts();
+
+    res.status(200).json(posts);
+  } catch (error) {
+    console.error("Error undoing repost:", error);
+    res.status(500).json({ message: "Failed to undo repost" });
+  }
+};
+
 /* READ */
 export const getFeedPosts = async (req, res) => {
   try {
-    const posts = await Post.find({ isDeleted: { $ne: true } })
-      .populate({
-        path: 'userId',
-        select: '_id firstName lastName picturePath isVerified isAdmin bio',
-        match: { isBanned: { $ne: true } } // Only include posts from non-banned users
-      })
-      .sort({ pinned: -1, pinnedAt: -1, createdAt: -1 }); // Sort pinned posts first (by pinnedAt), then regular posts by createdAt
+    const filteredPosts = await fetchPosts();
 
-    // Filter out posts from banned users (those where populate returned null)
-    const filteredPosts = posts.filter(post => post.userId !== null);
+    // Debug link previews
+    filteredPosts.forEach(post => {
+      if (post.linkPreviews && post.linkPreviews.length > 0) {
+        console.log(`🔍 Post ${post._id} has ${post.linkPreviews.length} link previews:`);
+        post.linkPreviews.forEach((preview, index) => {
+          console.log(`  Preview ${index + 1}:`, {
+            url: preview.url,
+            title: preview.title,
+            description: preview.description,
+            image: preview.image,
+            siteName: preview.siteName,
+          });
+        });
+      }
+    });
 
     res.status(200).json(filteredPosts);
   } catch (err) {
@@ -207,19 +443,7 @@ export const getFeedPosts = async (req, res) => {
 export const getUserPosts = async (req, res) => {
   try {
     const { userId } = req.params;
-    const posts = await Post.find({
-      userId,
-      isDeleted: { $ne: true }
-    })
-      .populate({
-        path: 'userId',
-        select: '_id firstName lastName picturePath isVerified isAdmin bio',
-        match: { isBanned: { $ne: true } }
-      })
-      .sort({ createdAt: -1 }); // Sort by newest first
-
-    // Filter out posts from banned users (those where populate returned null)
-    const filteredPosts = posts.filter(post => post.userId !== null);
+    const filteredPosts = await fetchPosts({ userId });
 
     res.status(200).json(filteredPosts);
   } catch (err) {
@@ -238,17 +462,46 @@ export const getPostById = async (req, res) => {
     }
 
     // Populate user information for admin badge display
-    const populatedPost = await Post.findById(postId).populate({
-      path: 'userId',
-      select: '_id firstName lastName picturePath isVerified isAdmin bio',
-      match: { isBanned: { $ne: true } }
-    });
+    const populatedPost = await Post.findById(postId)
+      .populate({
+        path: 'userId',
+        select: USER_FIELDS,
+        match: { isBanned: { $ne: true } }
+      })
+      .populate({
+        path: 'repostOf',
+        populate: {
+          path: 'userId',
+          select: USER_FIELDS,
+          match: { isBanned: { $ne: true } },
+        },
+      });
 
     if (!populatedPost || !populatedPost.userId) {
       return res.status(404).json({ message: "Post author not found" });
     }
 
-    res.status(200).json(populatedPost);
+    // Calculate reaction counts for response (similar to reactToPost)
+    const validReactions = ['like', 'love', 'laugh', 'angry', 'sad', 'wow'];
+    const reactionCounts = {};
+    validReactions.forEach(reaction => {
+      reactionCounts[reaction] = 0;
+    });
+
+    populatedPost.reactions.forEach((reaction) => {
+      if (reactionCounts.hasOwnProperty(reaction)) {
+        reactionCounts[reaction]++;
+      }
+    });
+
+    // Add reaction data to response
+    const postWithReactions = {
+      ...populatedPost.toObject(),
+      reactionCounts,
+      userReaction: populatedPost.reactions.get(req.user?.id) || null // Include current user's reaction if authenticated
+    };
+
+    res.status(200).json(postWithReactions);
   } catch (err) {
     console.error("Error fetching post by ID:", err);
     res.status(404).json({ message: err.message });
@@ -285,85 +538,128 @@ export const editPost = async (req, res) => {
       });
     }
 
-    // Handle multiple media files
-    let finalMediaPaths = post.mediaPaths ? [...post.mediaPaths] : []; // Keep existing media by default
-    let finalMediaTypes = post.mediaTypes ? [...post.mediaTypes] : [];
-    let finalMediaSizes = post.mediaSizes ? [...post.mediaSizes] : [];
+    // Update link previews based on new description
+    if (processedDescription) {
+      const urls = extractUrlsFromText(processedDescription);
+      if (urls.length > 0) {
+        console.log(`🔗 Found ${urls.length} URL(s) in edited post, extracting previews...`);
+        let updatedLinkPreviews = [];
+
+        // Remove URLs from description to avoid duplication
+        let cleanDescription = processedDescription;
+        console.log(`🔍 Edit - Original description: "${processedDescription}"`);
+        console.log(`🔗 Edit - Detected URLs:`, urls);
+
+        urls.forEach((url, index) => {
+          // Try multiple approaches to remove the URL
+          const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+          // First try exact match
+          let before = cleanDescription;
+          cleanDescription = cleanDescription.replace(new RegExp(escapedUrl, 'gi'), '').trim();
+          console.log(`  Edit URL ${index + 1} removal attempt 1: "${before}" → "${cleanDescription}"`);
+
+          // If URL still exists, try with simplified patterns
+          const urlWithoutProtocol = url.replace(/^https?:\/\//, '');
+          if (cleanDescription.includes(urlWithoutProtocol)) {
+            before = cleanDescription;
+            cleanDescription = cleanDescription.replace(new RegExp(urlWithoutProtocol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '').trim();
+            console.log(`  Edit URL ${index + 1} removal attempt 2: "${before}" → "${cleanDescription}"`);
+          }
+
+          const urlWithoutWww = url.replace(/^https?:\/\/(?:www\.)?/, '');
+          if (cleanDescription.includes(urlWithoutWww)) {
+            before = cleanDescription;
+            cleanDescription = cleanDescription.replace(new RegExp(urlWithoutWww.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '').trim();
+            console.log(`  Edit URL ${index + 1} removal attempt 3: "${before}" → "${cleanDescription}"`);
+          }
+        });
+
+        // Clean up any double spaces or trailing commas left after URL removal
+        cleanDescription = cleanDescription.replace(/\s+/g, ' ').replace(/,\s*,/g, ',').replace(/^,|,$/g, '').trim();
+
+        // Update description if URLs were removed
+        if (cleanDescription !== processedDescription) {
+          post.description = cleanDescription || processedDescription;
+          console.log(`🧹 Edit - Cleaned description: "${processedDescription}" → "${cleanDescription}"`);
+        } else {
+          console.log(`⚠️ Edit - No URLs removed, keeping original: "${processedDescription}"`);
+        }
+
+        for (const url of urls.slice(0, 3)) { // Limit to 3 previews per post
+          try {
+            const metadata = await extractLinkMetadata(url);
+            if (metadata) {
+              updatedLinkPreviews.push({
+                url,
+                title: metadata.title,
+                description: metadata.description,
+                image: metadata.image,
+                siteName: metadata.siteName,
+                favicon: metadata.favicon,
+              });
+              console.log(`✅ Link preview extracted for edit: ${url}`);
+            }
+          } catch (error) {
+            console.log(`⚠️ Failed to extract preview for edit: ${url}`);
+          }
+
+          // Small delay between requests to be respectful
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        post.linkPreviews = updatedLinkPreviews;
+      } else {
+        // No URLs found, clear link previews
+        post.linkPreviews = [];
+      }
+    }
+
+    // Handle media file
+    let finalMediaPath = post.mediaPath; // Keep existing media by default
+    let finalMediaType = post.mediaType;
+    let mediaSize = post.mediaSize;
     let tempFilesToClean = [];
 
-    if (req.files && req.files.length > 0) {
-      // New media files uploaded - replace all existing media
-      console.log(`Processing ${req.files.length} new uploaded files for edit...`);
-      
-      finalMediaPaths = [];
-      finalMediaTypes = [];
-      finalMediaSizes = [];
-      
-      for (const file of req.files) {
-        const uploadedPath = path.join("/assets", file.filename);
-        
-        // For now, assume all files are images (we can extend this later for different media types)
-        const mediaType = 'image'; // Default to image, can be extended
-        
-        if (mediaType === 'image') {
-          // Process image for compression and resizing
-          console.log(`🖼️ Processing image: ${file.filename}`);
-          const processedImage = await processPostImage(uploadedPath);
+    if (req.file) {
+      // New media file uploaded
+      const uploadedPath = path.join("public/assets", req.file.filename);
+      finalMediaType = mediaType || 'image';
 
-          if (processedImage.processedPath !== uploadedPath) {
-            // Image was processed and optimized
-            finalMediaPaths.push(path.basename(processedImage.processedPath));
-            finalMediaTypes.push(mediaType);
-            finalMediaSizes.push(processedImage.processedSize);
+      if (finalMediaType === 'image') {
+        console.log("🖼️ Processing uploaded image for optimization...");
+        const processedImage = await processPostImage(uploadedPath);
 
-            // Mark original file for cleanup
-            tempFilesToClean.push(uploadedPath);
+        if (processedImage.processedPath !== uploadedPath) {
+          finalMediaPath = path.basename(processedImage.processedPath);
+          mediaSize = processedImage.processedSize;
 
-            console.log(`✅ Image optimized: ${processedImage.compressionRatio}% of original size`);
-          } else {
-            // Processing failed, use original
-            finalMediaPaths.push(file.filename);
-            finalMediaTypes.push(mediaType);
-            finalMediaSizes.push(file.size);
-            console.log("⚠️ Image processing failed, using original file");
-          }
+          // Mark original file for cleanup
+          tempFilesToClean.push(uploadedPath);
+
+          console.log(`✅ Image optimized: ${processedImage.compressionRatio}% of original size`);
         } else {
-          // Non-image media (can be extended later)
-          finalMediaPaths.push(file.filename);
-          finalMediaTypes.push(mediaType);
-          finalMediaSizes.push(file.size);
+          finalMediaPath = req.file.filename;
+          mediaSize = req.file.size;
+          console.log("⚠️ Image processing failed, using original file");
         }
+      } else {
+        finalMediaPath = req.file.filename;
+        mediaSize = req.file.size;
+        console.log("📎 Non-image media uploaded:", req.file.filename, "Type:", finalMediaType);
       }
-    } else if (mediaPath === "null" || mediaPath === undefined) {
-      // Explicitly removing all media (mediaPath is "null" from FormData) or no mediaPath field sent
-      finalMediaPaths = [];
-      finalMediaTypes = [];
-      finalMediaSizes = [];
+    } else if (mediaPath === null) {
+      // Explicitly removing media
+      finalMediaPath = null;
+      finalMediaType = null;
+      mediaSize = null;
     }
 
     // Update post
-    post.description = processedDescription || "";
-    post.mediaPaths = finalMediaPaths;
-    post.mediaTypes = finalMediaTypes;
-    post.mediaSizes = finalMediaSizes;
+    post.mediaPath = finalMediaPath;
+    post.mediaType = finalMediaType;
+    post.mediaSize = mediaSize;
     post.editedAt = new Date();
-
-    // For backward compatibility, also update single media fields
-    if (finalMediaPaths.length > 0) {
-      post.mediaPath = finalMediaPaths[0];
-      post.mediaType = finalMediaTypes[0];
-      post.mediaSize = finalMediaSizes[0];
-      
-      // For backward compatibility, also set picturePath for images
-      if (finalMediaTypes[0] === 'image') {
-        post.picturePath = finalMediaPaths[0];
-      }
-    } else {
-      post.mediaPath = null;
-      post.mediaType = null;
-      post.mediaSize = null;
-      post.picturePath = null;
-    }
 
     await post.save();
 
@@ -372,9 +668,38 @@ export const editPost = async (req, res) => {
       await cleanupTempFiles(tempFilesToClean);
     }
 
+    console.log(`✏️ Post edited by user ${userId}: ${post._id}`);
     res.status(200).json(post);
   } catch (err) {
     console.error("Error editing post:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const deletePost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+
+    const post = await Post.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    // IDOR protection: Check if user owns the post
+    if (post.userId.toString() !== userId) {
+      return res.status(403).json({ message: "You can only delete your own posts" });
+    }
+
+    // Mark as deleted instead of actually deleting (soft delete)
+    post.isDeleted = true;
+    post.deletedAt = new Date();
+    await post.save();
+
+    console.log(`🗑️ Post deleted by user ${userId}: ${post._id}`);
+    res.status(200).json({ message: "Post deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting post:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -401,20 +726,25 @@ export const deleteComment = async (req, res) => {
     if (comment.userId !== userId) {
       return res.status(403).json({ message: "You can only delete your own comments" });
     }
+
     // Remove the comment
     post.comments.splice(commentIndex, 1);
     await post.save();
 
-    console.log(`🗑️ Post deleted by user ${userId}: ${post._id}`);
+    console.log(`🗑️ Comment deleted by user ${userId} from post ${id}`);
+    res.status(200).json({ message: "Comment deleted successfully" });
   } catch (err) {
-    console.error("Error deleting post:", err);
+    console.error("Error deleting comment:", err);
     res.status(500).json({ message: err.message });
   }
-try {
-  const { id } = req.params; // post ID
-  const { userId, comment } = req.body;
+};
 
-  // Validate input
+export const addComment = async (req, res) => {
+  try {
+    const { id } = req.params; // post ID
+    const { userId, comment } = req.body;
+
+    // Validate input
     if (!comment || comment.trim().length === 0) {
       return res.status(400).json({ message: "Comment cannot be empty" });
     }
@@ -601,13 +931,16 @@ export const likePost = async (req, res) => {
     }
 
     const isLiked = post.likes.get(userId);
+    const currentReaction = post.reactions.get(userId);
 
     if (isLiked) {
       // Unlike the post
       post.likes.delete(userId);
+      post.reactions.delete(userId);
     } else {
       // Like the post
       post.likes.set(userId, true);
+      post.reactions.set(userId, 'like');
 
       // Create notification for like (only if not liking own post)
       if (post.userId.toString() !== userId) {
@@ -624,10 +957,121 @@ export const likePost = async (req, res) => {
 
     const updatedPost = await post.save();
 
-    res.status(200).json(updatedPost);
+    // Calculate reaction counts for response
+    const validReactions = ['like', 'love', 'laugh', 'angry', 'sad', 'wow'];
+    const reactionCounts = {};
+    validReactions.forEach(reaction => {
+      reactionCounts[reaction] = 0;
+    });
+
+    post.reactions.forEach((reaction) => {
+      if (reactionCounts.hasOwnProperty(reaction)) {
+        reactionCounts[reaction]++;
+      }
+    });
+
+    res.status(200).json({
+      ...updatedPost.toObject(),
+      reactionCounts,
+      userReaction: post.reactions.get(userId) || null
+    });
   } catch (err) {
     console.error("Error liking/unliking post:", err);
     res.status(404).json({ message: err.message });
+  }
+};
+
+/* REACT TO POST - Multiple reaction types */
+export const reactToPost = async (req, res) => {
+  try {
+    console.log("🔄 Reacting to post:", req.params.id, req.body);
+    
+    const { id } = req.params;
+    const { userId, reactionType } = req.body;
+
+    if (!userId || !reactionType) {
+      console.log("❌ Missing userId or reactionType");
+      return res.status(400).json({ message: "User ID and reaction type are required" });
+    }
+
+    const validReactions = ['like', 'love', 'laugh', 'angry', 'sad', 'wow'];
+    if (!validReactions.includes(reactionType)) {
+      console.log("❌ Invalid reaction type:", reactionType);
+      return res.status(400).json({ message: "Invalid reaction type" });
+    }
+
+    console.log("🔍 Finding post:", id);
+    const post = await Post.findById(id);
+    if (!post) {
+      console.log("❌ Post not found:", id);
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const currentReaction = post.reactions.get(userId);
+
+    if (currentReaction === reactionType) {
+      // Remove reaction if same reaction is clicked
+      post.reactions.delete(userId);
+      post.likes.delete(userId); // Also remove from legacy likes
+    } else {
+      // Set new reaction
+      post.reactions.set(userId, reactionType);
+      // Keep legacy likes in sync for backward compatibility
+      if (reactionType === 'like') {
+        post.likes.set(userId, true);
+      } else {
+        post.likes.delete(userId);
+      }
+
+      // Create notification for reaction (only if not reacting to own post)
+      if (post.userId.toString() !== userId) {
+        const reactionMessages = {
+          'like': 'liked your post',
+          'love': 'loved your post',
+          'laugh': 'laughed at your post',
+          'angry': 'reacted angrily to your post',
+          'sad': 'reacted sadly to your post',
+          'wow': 'reacted with wow to your post'
+        };
+
+        await createNotification(
+          post.userId,
+          userId,
+          'like', // Keep as 'like' for notification type
+          reactionMessages[reactionType],
+          post._id,
+          'post'
+        );
+      }
+    }
+
+    const updatedPost = await post.save();
+
+    // Calculate reaction counts for response
+    const reactionCounts = {};
+    validReactions.forEach(reaction => {
+      reactionCounts[reaction] = 0;
+    });
+
+    post.reactions.forEach((reaction) => {
+      if (reactionCounts.hasOwnProperty(reaction)) {
+        reactionCounts[reaction]++;
+      }
+    });
+
+    res.status(200).json({
+      ...updatedPost.toObject(),
+      reactionCounts,
+      userReaction: post.reactions.get(userId) || null
+    });
+  } catch (err) {
+    console.error("❌ Error reacting to post:", err);
+    console.error("❌ Error stack:", err.stack);
+    res.status(500).json({ 
+      message: err.message,
+      error: "REACTION_ERROR",
+      details: err.stack 
+    });
   }
 };
 
@@ -723,5 +1167,27 @@ export const searchPosts = async (req, res) => {
   } catch (err) {
     console.error("Error searching posts:", err);
     res.status(500).json({ message: err.message });
+  }
+};
+export const getLinkPreview = async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ message: "URL is required" });
+    }
+
+    console.log(`🔗 Fetching preview for: ${url}`);
+
+    const metadata = await extractLinkMetadata(url);
+
+    if (metadata) {
+      res.status(200).json(metadata);
+    } else {
+      res.status(404).json({ message: "Could not extract metadata for this URL" });
+    }
+  } catch (error) {
+    console.error("Error fetching link preview:", error);
+    res.status(500).json({ message: "Failed to fetch link preview" });
   }
 };

@@ -41,7 +41,7 @@ const EmailVerification = ({ email, onBackToLogin }) => {
     setError("");
 
     try {
-      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/auth/verify-email", {
+      const response = await fetch("http://localhost:5000/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
@@ -78,7 +78,7 @@ const EmailVerification = ({ email, onBackToLogin }) => {
     setError("");
 
     try {
-      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/auth/resend-verification", {
+      const response = await fetch("http://localhost:5000/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

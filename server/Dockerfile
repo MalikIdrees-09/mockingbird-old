@@ -1,20 +1,20 @@
-# Use Node.js 20 Alpine as base image
-FROM node:20-alpine
+FROM node:18-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
 COPY . .
 
-# Create public/assets directory for file uploads
-RUN mkdir -p public/assets
+# Set production env
+ENV NODE_ENV=production
+# Cloud Run sets PORT env
+ENV PORT=8080
 
-# Start the application
+EXPOSE 8080
+
 CMD ["npm", "start"]
+
+
+

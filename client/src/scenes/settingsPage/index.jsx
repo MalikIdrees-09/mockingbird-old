@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import {
   Box,
@@ -18,6 +18,8 @@ import {
   Tab,
   Chip,
   IconButton,
+  Slider,
+  useMediaQuery,
 } from "@mui/material";
 import {
   Person,
@@ -31,20 +33,56 @@ import {
   CheckCircle,
   Error,
   Info,
+  Palette,
 } from "@mui/icons-material";
-import { updateUser } from "state";
+import { updateUser, setBackgroundTheme, clearBackgroundTheme } from "state";
 import Navbar from "scenes/navbar";
 import WidgetWrapper from "components/WidgetWrapper";
 import ChangeProfilePictureDialog from "components/ChangeProfilePictureDialog";
+import { useNavigate } from "react-router-dom";
+import { setLogout } from "state";
 
 const Settings = () => {
   const { palette } = useTheme();
+  const isMobile = useMediaQuery('(max-width:999px)');
   const user = useSelector((state) => state.user);
   const token = useSelector((state) => state.token);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // Tab state
   const [tabValue, setTabValue] = useState(0);
+  // Appearance state (reads from Redux uiTheme if present)
+  const uiTheme = useSelector((state) => state.uiTheme);
+  const [bgType, setBgType] = useState(uiTheme?.backgroundType || null);
+  const [bgValue, setBgValue] = useState(uiTheme?.backgroundValue || "");
+  const [bgBlur, setBgBlur] = useState(uiTheme?.blur || 0);
+  const [bgDim, setBgDim] = useState(uiTheme?.dim || 0);
+  const [gradAngle, setGradAngle] = useState(135);
+  const [gradC1, setGradC1] = useState('#1e3c72');
+  const [gradC2, setGradC2] = useState('#2a5298');
+  const applyAppearance = () => {
+    dispatch(setBackgroundTheme({ backgroundType: bgType, backgroundValue: bgValue, blur: bgBlur, dim: bgDim }));
+  };
+  const resetAppearance = () => {
+    dispatch(clearBackgroundTheme());
+    setBgType(null); setBgValue(""); setBgBlur(0); setBgDim(0);
+  };
+  const themePresets = [
+    { label: 'Tropical', type: 'image', value: '/assets/themes/tropical.jpg' },
+    { label: 'Sunset', type: 'image', value: '/assets/themes/sunset.jpg' },
+    { label: 'Aurora', type: 'image', value: '/assets/themes/aurora.jpg' },
+  ];
+
+  // Live preview: update global theme whenever local controls change
+  useEffect(() => {
+    dispatch(setBackgroundTheme({
+      backgroundType: bgType,
+      backgroundValue: bgValue,
+      blur: bgBlur,
+      dim: bgDim,
+    }));
+  }, [bgType, bgValue, bgBlur, bgDim, dispatch]);
 
   // Form states for different sections
   const [profileForm, setProfileForm] = useState({
@@ -94,9 +132,26 @@ const Settings = () => {
     severity: "success",
   });
 
+  // State to force re-renders of profile pictures
+  const [profilePictureKey, setProfilePictureKey] = useState(Date.now());
+
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
+
+  // Force component re-render when profile picture is updated
+  useEffect(() => {
+    const handleProfilePictureUpdate = () => {
+      // Force re-render by updating the key
+      setProfilePictureKey(Date.now());
+    };
+
+    window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate);
+
+    return () => {
+      window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate);
+    };
+  }, []);
 
   // Handle profile update
   const handleProfileUpdate = async (e) => {
@@ -110,7 +165,7 @@ const Settings = () => {
     try {
       console.log("📡 Making API call to update profile...");
       const response = await fetch(
-        `https://mockingbird-backend-453975176199.us-central1.run.app/users/${user._id}`,
+        `http://localhost:5000/users/${user._id}`,
         {
           method: "PATCH",
           headers: {
@@ -212,7 +267,7 @@ const Settings = () => {
 
     try {
       console.log("📡 Making API call to change password...");
-      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/auth/change-password", {
+      const response = await fetch("http://localhost:5000/auth/change-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -291,7 +346,7 @@ const Settings = () => {
 
     try {
       console.log("🔢 Verifying email change OTP...");
-      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/auth/verify-email", {
+      const response = await fetch("http://localhost:5000/auth/verify-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -386,7 +441,7 @@ const Settings = () => {
 
     try {
       console.log("📡 Making API call to change email...");
-      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/auth/change-email", {
+      const response = await fetch("http://localhost:5000/auth/change-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -458,26 +513,30 @@ const Settings = () => {
     console.log("🏁 Email change process completed");
   };
 
+  // Always render the full settings UI; it is now responsive for mobile as well
+
   return (
     <>
       <Navbar />
       <Box
         width="100%"
-        padding="2rem 6%"
-        display="flex"
-        justifyContent="center"
+        sx={{
+          p: { xs: '0.5rem', md: '2rem 6%' },
+          display: 'flex',
+          justifyContent: 'center',
+        }}
       >
         <Box
           flexBasis="100%"
-          maxWidth="1200px"
-          mt="2rem"
+          maxWidth={{ xs: '100%', md: '1200px' }}
+          mt={{ xs: '1rem', md: '2rem' }}
         >
-          <WidgetWrapper>
+          <WidgetWrapper sx={{ p: { xs: '0.5rem', md: '1.5rem' } }}>
             <Box sx={{ width: "100%" }}>
               {/* Header */}
               <Box sx={{ mb: 4 }}>
                 <Typography
-                  variant="h3"
+                  variant={{ xs: 'h5', md: 'h3' }}
                   sx={{
                     fontFamily: "Playfair Display, serif",
                     fontWeight: 700,
@@ -510,11 +569,11 @@ const Settings = () => {
                   border: `2px solid ${palette.primary.main}20`,
                 }}
               >
-                <CardContent sx={{ p: 4 }}>
+                <CardContent sx={{ p: { xs: 2, md: 4 } }}>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                     <Avatar
                       src={
-                        user.picturePath ? `https://mockingbird-backend-453975176199.us-central1.run.app/assets/${user.picturePath}` : undefined
+                        user.picturePath ? `http://localhost:5000/assets/${user.picturePath}?v=${profilePictureKey}` : undefined
                       }
                       sx={{
                         width: 80,
@@ -596,12 +655,18 @@ const Settings = () => {
                     iconPosition="start"
                     sx={{ textTransform: "none" }}
                   />
+                  <Tab
+                    icon={<Palette />}
+                    label="Appearance"
+                    iconPosition="start"
+                    sx={{ textTransform: "none" }}
+                  />
                 </Tabs>
               </Box>
 
               {/* Profile Tab */}
               {tabValue === 0 && (
-                <Grid container spacing={4}>
+                <Grid container spacing={{ xs: 2, md: 4 }}>
                   {/* Profile Picture Section */}
                   <Grid item xs={12} md={4}>
                     <Card
@@ -627,9 +692,7 @@ const Settings = () => {
                       <CardContent sx={{ textAlign: "center", pb: 3 }}>
                         <Box sx={{ position: "relative", display: "inline-block", mb: 2 }}>
                           <Avatar
-                            src={
-                              user.picturePath ? `https://mockingbird-backend-453975176199.us-central1.run.app/assets/${user.picturePath}` : undefined
-                            }
+                            src={user.picturePath ? `http://localhost:5000/assets/${user.picturePath}?v=${profilePictureKey}` : undefined}
                             sx={{
                               width: 150,
                               height: 150,
@@ -696,7 +759,7 @@ const Settings = () => {
                       />
                       <CardContent>
                         <Box component="form" onSubmit={handleProfileUpdate}>
-                          <Grid container spacing={3}>
+                          <Grid container spacing={{ xs: 2, md: 3 }}>
                             <Grid item xs={12} sm={6}>
                               <TextField
                                 fullWidth
@@ -998,6 +1061,104 @@ const Settings = () => {
                           Account status: {user.isVerified ? "Verified" : "Unverified"}
                         </Typography>
                       </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Appearance Tab */}
+              {tabValue === 3 && (
+                <Card
+                  sx={{
+                    backgroundColor: palette.neutral.light + "10",
+                    borderRadius: "16px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    border: `1px solid ${palette.primary.main}20`,
+                  }}
+                >
+                  <CardHeader
+                    title="Appearance"
+                    subheader="Customize your background"
+                    sx={{
+                      backgroundColor: palette.primary.light + "20",
+                      "& .MuiCardHeader-title": { fontWeight: 600 },
+                    }}
+                    avatar={<Palette sx={{ color: palette.primary.main }} />}
+                  />
+                  <CardContent>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                      {themePresets.map(p => (
+                        <Button key={p.label} variant="outlined" onClick={() => { setBgType(p.type); setBgValue(p.value); }}>
+                          {p.label}
+                        </Button>
+                      ))}
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                      <Button variant={bgType === null ? 'contained' : 'outlined'} onClick={() => setBgType(null)}>None</Button>
+                      <Button variant={bgType === 'image' ? 'contained' : 'outlined'} onClick={() => setBgType('image')}>Image</Button>
+                      <Button variant={bgType === 'gradient' ? 'contained' : 'outlined'} onClick={() => setBgType('gradient')}>Gradient</Button>
+                    </Box>
+                    {/* Custom image upload */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                      <Button variant="outlined" component="label">
+                        Upload Image
+                        <input
+                          type="file"
+                          accept="image/*"
+                          hidden
+                          onChange={(e) => {
+                            const file = e.target.files && e.target.files[0];
+                            if (file) {
+                              const url = URL.createObjectURL(file);
+                              setBgType('image');
+                              setBgValue(url);
+                            }
+                          }}
+                        />
+                      </Button>
+                      {bgType === 'image' && bgValue && (
+                        <Box sx={{ width: 80, height: 48, borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                          <img src={bgValue} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </Box>
+                      )}
+                    </Box>
+                    {bgType === 'image' && (
+                      <TextField fullWidth label={'Image URL'} value={bgValue} onChange={(e) => setBgValue(e.target.value)} sx={{ mb: 2 }} />
+                    )}
+                    {bgType === 'gradient' && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" sx={{ mb: 1 }}>Create your gradient</Typography>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body2" sx={{ minWidth: 60 }}>Angle</Typography>
+                            <Slider value={gradAngle} onChange={(e, v) => { setGradAngle(v); const g = `linear-gradient(${v}deg, ${gradC1} 0%, ${gradC2} 100%)`; setBgValue(g); }} min={0} max={360} sx={{ width: 200 }} />
+                            <Typography variant="caption" sx={{ width: 36, textAlign: 'right' }}>{gradAngle}°</Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body2">Color 1</Typography>
+                              <input type="color" value={gradC1} onChange={(e) => { const c = e.target.value; setGradC1(c); const g = `linear-gradient(${gradAngle}deg, ${c} 0%, ${gradC2} 100%)`; setBgValue(g); }} />
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body2">Color 2</Typography>
+                              <input type="color" value={gradC2} onChange={(e) => { const c = e.target.value; setGradC2(c); const g = `linear-gradient(${gradAngle}deg, ${gradC1} 0%, ${c} 100%)`; setBgValue(g); }} />
+                            </Box>
+                          </Box>
+                        </Box>
+                        <Box sx={{ height: 48, borderRadius: 1, border: '1px solid', borderColor: 'divider', background: bgValue || 'transparent' }} />
+                      </Box>
+                    )}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2">Blur</Typography>
+                      <Slider value={bgBlur} onChange={(e, v) => setBgBlur(v)} min={0} max={12} />
+                    </Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2">Dim</Typography>
+                      <Slider value={bgDim} onChange={(e, v) => setBgDim(v)} min={0} max={80} />
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button variant="contained" onClick={applyAppearance}>Apply</Button>
+                      <Button variant="text" onClick={resetAppearance}>Reset</Button>
                     </Box>
                   </CardContent>
                 </Card>

@@ -18,23 +18,34 @@ const postSchema = mongoose.Schema(
     description: String,
     picturePath: String, // Legacy field for backward compatibility
     userPicturePath: String,
-    // New media fields - Arrays for multiple media support
-    mediaPaths: [{
-      type: String,
-      default: []
-    }],
-    mediaTypes: [{
+    // New media fields
+    mediaPath: String, // Path to the media file (legacy single media)
+    mediaType: {
       type: String,
       enum: ['image', 'audio', 'clip', null],
-      default: []
-    }],
-    mediaSizes: [{
-      type: Number,
-      default: []
-    }],
+      default: null,
+    },
+    mediaDuration: Number, // Duration in seconds for video/audio
+    mediaSize: Number, // File size in bytes
+    
+    // Multiple media fields for galleries
+    mediaPaths: [String], // Array of media file paths
+    mediaTypes: [String], // Array of media types
+    mediaSizes: [Number], // Array of file sizes
+    mediaDurations: [Number], // Array of durations for audio/video
     likes: {
       type: Map,
       of: Boolean,
+    },
+    // New reactions system - supports multiple reaction types
+    reactions: {
+      type: Map,
+      of: {
+        type: String,
+        enum: ['like', 'love', 'laugh', 'angry', 'sad', 'wow'],
+        default: 'like'
+      },
+      default: new Map()
     },
     comments: {
       type: [{
@@ -84,6 +95,46 @@ const postSchema = mongoose.Schema(
     pinnedAt: {
       type: Date,
       default: null,
+    },
+    // Link preview fields
+    linkPreviews: [{
+      url: {
+        type: String,
+        required: true,
+      },
+      title: String,
+      description: String,
+      image: String,
+      siteName: String,
+      favicon: String,
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
+    rssSource: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    rssGuid: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    rssLink: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    repostOf: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post",
+      default: null,
+    },
+    repostComment: {
+      type: String,
+      default: "",
     },
   },
   { timestamps: true }

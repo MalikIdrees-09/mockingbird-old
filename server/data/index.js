@@ -6,6 +6,7 @@ const userIds = [
   new mongoose.Types.ObjectId(),
   new mongoose.Types.ObjectId(),
   new mongoose.Types.ObjectId(),
+  new mongoose.Types.ObjectId(), // Al Jazeera user
 ];
 
 export const users = [
@@ -88,6 +89,24 @@ export const users = [
     createdAt: 1388090662,
     updatedAt: 1388090662,
     __v: 0,
+  },
+  {
+    _id: userIds[5],
+    firstName: "Al",
+    lastName: "Jazeera",
+    email: "news@aljazeera.com",
+    password: "$2b$10$dsasdgsagasda//G9JxQ4bQ8KXf4OAIe/X/AK9skywu",
+    picturePath: "aljazeera-logo.svg",
+    friends: [],
+    location: "Doha, Qatar",
+    bio: "Leading international news organization providing balanced coverage of global events",
+    viewedProfile: 0,
+    impressions: 0,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    __v: 0,
+    isVerified: true, // Verified news source
+    isAdmin: false,
   },
 ];
 

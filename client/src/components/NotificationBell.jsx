@@ -9,6 +9,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useTheme } from "@mui/material/styles";
 import { handleBannedUserError } from "utils/api";
 import NotificationDropdown from "./NotificationDropdown";
+import { useSocket } from "./Chat/SocketProvider";
 
 const NotificationBell = () => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -18,13 +19,15 @@ const NotificationBell = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const dark = theme.palette.neutral.dark;
+  const socketCtx = useSocket();
+  const socket = socketCtx?.socket;
 
   // Fetch unread notification count
   const fetchUnreadCount = useCallback(async () => {
     if (!token) return;
 
     try {
-      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/notifications/unread-count", {
+      const response = await fetch("http://localhost:5000/notifications/unread-count", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -47,10 +50,20 @@ const NotificationBell = () => {
   useEffect(() => {
     fetchUnreadCount();
 
-    // Poll for new notifications every 30 seconds
+    // Poll as a fallback
     const interval = setInterval(fetchUnreadCount, 30000);
+
+    // Realtime update on incoming direct_message
+    if (socket && socket.on) {
+      const handler = () => fetchUnreadCount();
+      socket.on('direct_message', handler);
+      return () => {
+        clearInterval(interval);
+        socket.off('direct_message', handler);
+      };
+    }
     return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, socket]);
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -94,8 +107,8 @@ const NotificationBell = () => {
         }}
         sx={{
           "& .MuiPopover-paper": {
-            width: 400,
-            maxHeight: 600,
+            width: { xs: '90vw', sm: 360, md: 400 },
+            maxHeight: { xs: '70vh', sm: 520, md: 600 },
             borderRadius: 2,
             boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
           },

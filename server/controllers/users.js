@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import { RSS_CONFIG } from "../utils/rssSync.js";
 import { createNotification } from "./notifications.js";
 import { processProfilePicture, cleanupTempFiles } from "../utils/imageProcessor.js";
 import path from "path";
@@ -73,7 +74,7 @@ export const addRemoveFriend = async (req, res) => {
     if (user.friends.includes(friendId)) {
       // Removing friend - no notification needed
       user.friends = user.friends.filter((id) => id !== friendId);
-      friend.friends = friend.friends.filter((id) => id !== id);
+      friend.friends = friend.friends.filter((fid) => fid !== id);
     } else {
       // Adding friend - create friend request notification
       user.friends.push(friendId);
@@ -112,6 +113,17 @@ export const sendFriendRequest = async (req, res) => {
   try {
     const { id, friendId } = req.params;
     
+    // Disallow sending friend requests to system news accounts
+    if (RSS_CONFIG?.AL_JAZEERA_USER_ID && friendId === String(RSS_CONFIG.AL_JAZEERA_USER_ID)) {
+      return res.status(400).json({ message: "You cannot send a friend request to this account" });
+    }
+    // Block BBC and NASA news accounts by email lookup
+    const systemAccounts = await User.find({ email: { $in: ["news@bbc.com", "news@nasa.gov"] } }).select('_id');
+    const systemIds = new Set(systemAccounts.map(u => String(u._id)));
+    if (systemIds.has(String(friendId))) {
+      return res.status(400).json({ message: "You cannot send a friend request to this account" });
+    }
+
     // Prevent users from sending friend requests to themselves
     if (id === friendId) {
       return res.status(400).json({ message: "You cannot send a friend request to yourself" });
@@ -166,7 +178,9 @@ export const sendFriendRequest = async (req, res) => {
 export const acceptFriendRequest = async (req, res) => {
   try {
     const { id, friendId } = req.params;
-    
+    const userIdStr = String(id);
+    const friendIdStr = String(friendId);
+
     const user = await User.findById(id);
     const friend = await User.findById(friendId);
 
@@ -175,17 +189,29 @@ export const acceptFriendRequest = async (req, res) => {
     }
 
     // Check if friend request exists
-    if (!user.friendRequests.includes(friendId)) {
+    const hasRequest = (user.friendRequests || []).some(
+      (reqId) => String(reqId) === friendIdStr
+    );
+
+    if (!hasRequest) {
       return res.status(400).json({ message: "No friend request from this user" });
     }
 
     // Add to friends lists
-    user.friends.push(friendId);
-    friend.friends.push(id);
+    if (!(user.friends || []).some((fid) => String(fid) === friendIdStr)) {
+      user.friends.push(friendId);
+    }
+    if (!(friend.friends || []).some((fid) => String(fid) === userIdStr)) {
+      friend.friends.push(id);
+    }
 
     // Remove from request lists
-    user.friendRequests = user.friendRequests.filter((id) => id !== friendId);
-    friend.sentFriendRequests = friend.sentFriendRequests.filter((id) => id !== id);
+    user.friendRequests = (user.friendRequests || []).filter(
+      (reqId) => String(reqId) !== friendIdStr
+    );
+    friend.sentFriendRequests = (friend.sentFriendRequests || []).filter(
+      (sentId) => String(sentId) !== userIdStr
+    );
 
     await user.save();
     await friend.save();
@@ -210,7 +236,9 @@ export const acceptFriendRequest = async (req, res) => {
 export const rejectFriendRequest = async (req, res) => {
   try {
     const { id, friendId } = req.params;
-    
+    const userIdStr = String(id);
+    const friendIdStr = String(friendId);
+
     const user = await User.findById(id);
     const friend = await User.findById(friendId);
 
@@ -219,13 +247,21 @@ export const rejectFriendRequest = async (req, res) => {
     }
 
     // Check if friend request exists
-    if (!user.friendRequests.includes(friendId)) {
+    const hasRequest = (user.friendRequests || []).some(
+      (reqId) => String(reqId) === friendIdStr
+    );
+
+    if (!hasRequest) {
       return res.status(400).json({ message: "No friend request from this user" });
     }
 
     // Remove from request lists
-    user.friendRequests = user.friendRequests.filter((id) => id !== friendId);
-    friend.sentFriendRequests = friend.sentFriendRequests.filter((id) => id !== id);
+    user.friendRequests = (user.friendRequests || []).filter(
+      (reqId) => String(reqId) !== friendIdStr
+    );
+    friend.sentFriendRequests = (friend.sentFriendRequests || []).filter(
+      (sentId) => String(sentId) !== userIdStr
+    );
 
     await user.save();
     await friend.save();
@@ -240,7 +276,9 @@ export const rejectFriendRequest = async (req, res) => {
 export const cancelFriendRequest = async (req, res) => {
   try {
     const { id, friendId } = req.params;
-    
+    const userIdStr = String(id);
+    const friendIdStr = String(friendId);
+
     const user = await User.findById(id);
     const friend = await User.findById(friendId);
 
@@ -249,13 +287,21 @@ export const cancelFriendRequest = async (req, res) => {
     }
 
     // Check if friend request exists
-    if (!user.sentFriendRequests.includes(friendId)) {
+    const hasRequest = (user.sentFriendRequests || []).some(
+      (sentId) => String(sentId) === friendIdStr
+    );
+
+    if (!hasRequest) {
       return res.status(400).json({ message: "No friend request sent to this user" });
     }
 
     // Remove from request lists
-    user.sentFriendRequests = user.sentFriendRequests.filter((id) => id !== friendId);
-    friend.friendRequests = friend.friendRequests.filter((id) => id !== id);
+    user.sentFriendRequests = (user.sentFriendRequests || []).filter(
+      (sentId) => String(sentId) !== friendIdStr
+    );
+    friend.friendRequests = (friend.friendRequests || []).filter(
+      (reqId) => String(reqId) !== userIdStr
+    );
 
     await user.save();
     await friend.save();
@@ -288,7 +334,7 @@ export const updateProfilePicture = async (req, res) => {
     }
 
     // Process the uploaded image for profile picture optimization
-    const uploadedPath = path.join("/assets", req.file.filename);
+    const uploadedPath = path.join("public/assets", req.file.filename);
     console.log("🖼️ Processing profile picture for optimization...");
 
     const processedImage = await processProfilePicture(uploadedPath);
@@ -372,6 +418,12 @@ export const updateBio = async (req, res) => {
     // Return updated user data
     const updatedUser = await User.findById(id).select("-password");
     res.status(200).json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/* UPDATE COMPLETE PROFILE */
 export const updateProfile = async (req, res) => {
   try {
     const { id } = req.params;
@@ -388,19 +440,37 @@ export const updateProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Update user's profile information (only provided fields)
+    const updates = {};
+
     if (firstName !== undefined) {
-      user.firstName = firstName.trim();
+      if (!firstName || !firstName.trim()) {
+        return res.status(400).json({ message: "First name cannot be empty" });
+      }
+      updates.firstName = firstName.trim();
     }
+
     if (lastName !== undefined) {
-      user.lastName = lastName.trim();
+      if (!lastName || !lastName.trim()) {
+        return res.status(400).json({ message: "Last name cannot be empty" });
+      }
+      updates.lastName = lastName.trim();
     }
+
     if (location !== undefined) {
-      user.location = location ? location.trim() : "";
+      updates.location = location ? location.trim() : "";
     }
+
     if (bio !== undefined) {
-      user.bio = bio ? bio.trim() : "";
+      updates.bio = bio ? bio.trim() : "";
     }
+
+    if (Object.keys(updates).length === 0) {
+      // Nothing to update
+      const currentUser = await User.findById(id).select("-password");
+      return res.status(200).json(currentUser);
+    }
+
+    Object.assign(user, updates);
 
     await user.save();
 
@@ -409,13 +479,6 @@ export const updateProfile = async (req, res) => {
     res.status(200).json(updatedUser);
   } catch (err) {
     console.error("Error updating profile:", err);
-
-    // Handle Mongoose validation errors
-    if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json({ message: messages.join(', ') });
-    }
-
     res.status(500).json({ message: err.message });
   }
 };

@@ -17,8 +17,10 @@ import {
   Menu,
   Close,
   AdminPanelSettings,
+  Chat,
 } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
+import { alpha } from "@mui/material/styles";
 import { setMode, setLogout } from "state";
 import { useNavigate } from "react-router-dom";
 import FlexBetween from "components/FlexBetween";
@@ -39,6 +41,19 @@ const Navbar = () => {
   const dark = theme.palette.neutral.dark;
   const background = theme.palette.background.default;
   const alt = theme.palette.background.alt;
+  const uiTheme = useSelector((state) => state.uiTheme);
+  const isCustomTheme = !!uiTheme?.backgroundType; // only when user set image/gradient
+  const isDarkMode = theme.palette.mode === "dark";
+  const navBackground = isCustomTheme
+    ? (isDarkMode ? alpha('#050812', 0.88) : alpha('#ffffff', 0.9))
+    : (isDarkMode ? (theme.palette.background.subtle || theme.palette.background.alt || alt) : alt);
+  const navBorderColor = isCustomTheme
+    ? alpha('#000', isDarkMode ? 0.45 : 0.12)
+    : (isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)');
+  const navShadow = isCustomTheme
+    ? 'none'
+    : (isDarkMode ? '0 12px 32px rgba(5, 8, 20, 0.45)' : '0 8px 20px rgba(0, 0, 0, 0.08)');
+  const navBackdrop = (isCustomTheme || isDarkMode) ? 'saturate(180%) blur(16px)' : 'none';
 
   const fullName = user.firstName;
 
@@ -65,8 +80,20 @@ const Navbar = () => {
     }
   };
 
+  if (!isNonMobileScreens) return null; // hide navbar on mobile
+
   return (
-    <FlexBetween padding="1rem 6%" backgroundColor={alt}>
+    <FlexBetween
+      padding="1rem 6%"
+      sx={{
+        backgroundColor: navBackground,
+        backdropFilter: navBackdrop,
+        WebkitBackdropFilter: navBackdrop,
+        borderBottom: `1px solid ${navBorderColor}`,
+        boxShadow: navShadow,
+        transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
+      }}
+    >
       <FlexBetween gap="1.75rem">
         <Box
           onClick={() => navigate("/home")}
@@ -90,19 +117,39 @@ const Navbar = () => {
         </Box>
         {isNonMobileScreens && (
           <FlexBetween
-            backgroundColor={neutralLight}
+            backgroundColor={theme.palette.mode === 'dark' ? 'rgba(30, 36, 48, 0.9)' : neutralLight}
             borderRadius="9px"
-            gap="3rem"
-            padding="0.1rem 1.5rem"
+            gap="1.1rem"
+            padding="0.2rem 1rem"
+            sx={{
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 24px rgba(5, 8, 20, 0.3)'
+                : 'none',
+              border: theme.palette.mode === 'dark'
+                ? '1px solid rgba(120, 130, 155, 0.2)'
+                : 'none',
+              minWidth: '220px',
+              maxWidth: '320px',
+            }}
           >
             <InputBase 
               placeholder="Search..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={handleSearchKeyPress}
+              sx={{
+                fontSize: '0.95rem',
+                width: '100%',
+                '& input': {
+                  padding: '0.2rem 0',
+                }
+              }}
             />
-            <IconButton onClick={handleSearch}>
-              <Search />
+            <IconButton onClick={handleSearch} size="small" sx={{
+              p: 0.5,
+              color: theme.palette.neutral.main,
+            }}>
+              <Search sx={{ fontSize: '1.1rem' }} />
             </IconButton>
           </FlexBetween>
         )}
@@ -119,6 +166,9 @@ const Navbar = () => {
             )}
           </IconButton>
           <NotificationBell />
+          <IconButton onClick={() => navigate("/chat")}>
+            <Chat sx={{ fontSize: "25px" }} />
+          </IconButton>
           {isAdmin && (
             <IconButton onClick={() => navigate("/admin")}>
               <AdminPanelSettings 
@@ -137,10 +187,7 @@ const Navbar = () => {
                 width: "150px",
                 borderRadius: "0.25rem",
                 p: "0.25rem 1rem",
-                "& .MuiSvgIcon-root": {
-                  pr: "0.25rem",
-                  width: "3rem",
-                },
+                
                 "& .MuiSelect-select:focus": {
                   backgroundColor: neutralLight,
                 },
@@ -204,6 +251,9 @@ const Navbar = () => {
           >
             <Menu />
           </IconButton>
+          <IconButton onClick={() => navigate("/chat")}>
+            <Chat sx={{ fontSize: "20px", color: dark }} />
+          </IconButton>
         </Box>
       )}
 
@@ -217,7 +267,14 @@ const Navbar = () => {
           zIndex="10"
           maxWidth="500px"
           minWidth="300px"
-          backgroundColor={background}
+          sx={{
+            backgroundColor: navBackground,
+            backdropFilter: navBackdrop,
+            WebkitBackdropFilter: navBackdrop,
+            borderLeft: `1px solid ${navBorderColor}`,
+            boxShadow: navShadow,
+            transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
+          }}
         >
           {/* CLOSE ICON */}
           <Box display="flex" justifyContent="flex-end" p="1rem">
@@ -247,6 +304,9 @@ const Navbar = () => {
               )}
             </IconButton>
             <NotificationBell />
+            <IconButton onClick={() => navigate("/chat")}> 
+              <Chat sx={{ fontSize: "25px" }} />
+            </IconButton>
             {isAdmin && (
               <IconButton onClick={() => navigate("/admin")}>
                 <AdminPanelSettings 

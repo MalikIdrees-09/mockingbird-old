@@ -216,14 +216,24 @@ const PostDetail = () => {
                 picturePath={post.userPicturePath}
                 userPicturePath={post.userPicturePath}
                 likes={post.likes || {}}
+                reactions={post.reactions || {}}
+                reactionCounts={post.reactionCounts || {}}
+                userReaction={post.userReaction || null}
                 comments={post.comments || []}
                 mediaPath={post.mediaPath}
                 mediaType={post.mediaType}
                 mediaSize={post.mediaSize}
+                mediaPaths={post.mediaPaths}
+                mediaTypes={post.mediaTypes}
+                mediaSizes={post.mediaSizes}
+                mediaDurations={post.mediaDurations}
+                mediaDuration={post.mediaDuration}
                 createdAt={post.createdAt}
                 isDetailView={true}
                 isAdmin={post.userId?.isAdmin || false}
+                pinned={post.pinned || false}
                 showAddFriend={true}
+                linkPreviews={post.linkPreviews || []}
               />
             </Paper>
           )}

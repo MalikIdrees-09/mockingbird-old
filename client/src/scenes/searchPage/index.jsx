@@ -12,10 +12,11 @@ import {
   Avatar,
   Chip,
   Button,
+  TextField,
 } from "@mui/material";
 import { Person as PersonIcon, Article as ArticleIcon } from "@mui/icons-material";
 import { useSelector } from "react-redux";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "scenes/navbar";
 import Footer from "components/Footer";
 import FlexBetween from "components/FlexBetween";
@@ -32,6 +33,7 @@ const SearchPage = () => {
   const isNonMobileScreens = useMediaQuery("(min-width:1000px)");
   const token = useSelector((state) => state.token);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Get search query from URL parameters
   const queryParams = new URLSearchParams(location.search);
@@ -50,10 +52,10 @@ const SearchPage = () => {
       });
 
       if (type === "users") {
-        endpoint = `https://mockingbird-backend-453975176199.us-central1.run.app/users/search?${params}`;
+        endpoint = `http://localhost:5000/users/search?${params}`;
       } else if (type === "posts") {
         params.append("type", "all");
-        endpoint = `https://mockingbird-backend-453975176199.us-central1.run.app/posts/search?${params}`;
+        endpoint = `http://localhost:5000/posts/search?${params}`;
       }
 
       const response = await fetch(endpoint, {
@@ -120,10 +122,10 @@ const SearchPage = () => {
       });
 
       if (searchType === "users") {
-        endpoint = `https://mockingbird-backend-453975176199.us-central1.run.app/users/search?${params}`;
+        endpoint = `http://localhost:5000/users/search?${params}`;
       } else if (searchType === "posts") {
         params.append("type", "all");
-        endpoint = `https://mockingbird-backend-453975176199.us-central1.run.app/posts/search?${params}`;
+        endpoint = `http://localhost:5000/posts/search?${params}`;
       }
 
       const response = await fetch(endpoint, {
@@ -156,16 +158,46 @@ const SearchPage = () => {
       <Navbar />
       <Box
         width="100%"
-        padding="2rem 6%"
+        sx={{ p: { xs: '1rem', md: '2rem 6%' }, backgroundColor: 'transparent' }}
         flex={1}
       >
         {/* Search Header */}
         <Box mb={3}>
-          <Typography variant="h4" fontWeight="bold" mb={2}>
-            Search Results
+          <Typography variant="h5" fontWeight="bold" mb={1}>
+            Search
           </Typography>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search..."
+              defaultValue={query}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = e.currentTarget.value.trim();
+                  if (val.length >= 2) {
+                    navigate(`/search?q=${encodeURIComponent(val)}&type=${searchType}`);
+                  }
+                }
+              }}
+            />
+            <Button
+              variant="contained"
+              onClick={(e) => {
+                const input = e.currentTarget.parentElement.querySelector('input');
+                if (input) {
+                  const val = input.value.trim();
+                  if (val.length >= 2) {
+                    navigate(`/search?q=${encodeURIComponent(val)}&type=${searchType}`);
+                  }
+                }
+              }}
+            >
+              Go
+            </Button>
+          </Box>
           {query && (
-            <Typography variant="h6" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" mt={1}>
               Results for "{query}"
             </Typography>
           )}
@@ -175,7 +207,12 @@ const SearchPage = () => {
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
           <Tabs
             value={searchType}
-            onChange={handleTypeChange}
+            onChange={(event, newValue) => {
+              setSearchType(newValue);
+              if (query.trim().length >= 2) {
+                navigate(`/search?q=${encodeURIComponent(query)}&type=${newValue}`);
+              }
+            }}
             variant={isNonMobileScreens ? "standard" : "fullWidth"}
           >
             <Tab
@@ -209,7 +246,14 @@ const SearchPage = () => {
           </Box>
         ) : (
           <>
-            <Grid container spacing={2}>
+            <Box sx={{
+              backgroundColor: (theme) => theme.palette.background.paper,
+              borderRadius: 2,
+              p: 2,
+              border: '1px solid',
+              borderColor: 'divider'
+            }}>
+            <Grid container spacing={{ xs: 1.5, md: 2 }}>
               {results.map((result, index) => (
                 <Grid item xs={12} sm={6} md={4} key={result._id || index}>
                   <Card
@@ -217,14 +261,18 @@ const SearchPage = () => {
                       height: '100%',
                       cursor: 'pointer',
                       transition: 'all 0.3s ease',
+                      bgcolor: 'transparent',
+                      boxShadow: 'none',
+                      border: '1px solid',
+                      borderColor: 'divider',
                       '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: (theme) => theme.shadows[8],
+                        transform: 'translateY(-2px)',
+                        boxShadow: 'none',
                       },
                     }}
                     onClick={() => {
                       if (searchType === "users") {
-                        window.location.href = `/profile/${result._id}`;
+                        navigate(`/profile/${result._id}`);
                       }
                     }}
                   >
@@ -265,13 +313,11 @@ const SearchPage = () => {
                         <Box>
                           <FlexBetween mb={2}>
                             <Box display="flex" alignItems="center" gap={1}>
-                              <Avatar sx={{ width: 32, height: 32 }}>
-                                <UserImage
-                                  image={result.userId?.picturePath || result.userPicturePath}
-                                  size="32px"
-                                  name={`${result.firstName} ${result.lastName}`}
-                                />
-                              </Avatar>
+                              <UserImage
+                                image={result.userId?.picturePath || result.userPicturePath}
+                                size="32px"
+                                name={`${result.firstName} ${result.lastName}`}
+                              />
                               <Box>
                                 <Typography variant="subtitle2" fontWeight="bold">
                                   {result.firstName} {result.lastName}
@@ -306,6 +352,7 @@ const SearchPage = () => {
                 </Grid>
               ))}
             </Grid>
+            </Box>
 
             {/* Load More Button */}
             {pagination?.hasNextPage && (

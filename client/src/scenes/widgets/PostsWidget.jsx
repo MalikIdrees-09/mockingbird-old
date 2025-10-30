@@ -71,6 +71,9 @@ const PostsWidget = ({ userId, isProfile = false }) => {
           picturePath,
           userPicturePath,
           likes,
+          reactions,
+          reactionCounts,
+          userReaction,
           comments,
           mediaPath,
           mediaType,
@@ -79,6 +82,9 @@ const PostsWidget = ({ userId, isProfile = false }) => {
           mediaTypes,
           mediaSizes,
           pinned,
+          linkPreviews,
+          repostOf,
+          repostComment,
         }) => (
           <PostWidget
             key={_id}
@@ -89,8 +95,11 @@ const PostsWidget = ({ userId, isProfile = false }) => {
             location={location}
             bio={userId?.bio}
             picturePath={picturePath}
-            userPicturePath={userPicturePath}
+            userPicturePath={userPicturePath || (userId && userId.picturePath) || ""}
             likes={likes}
+            reactions={reactions}
+            reactionCounts={reactionCounts}
+            userReaction={userReaction}
             comments={comments}
             mediaPath={mediaPath}
             mediaType={mediaType}
@@ -101,6 +110,9 @@ const PostsWidget = ({ userId, isProfile = false }) => {
             isAdmin={userId?.isAdmin || false}
             pinned={pinned}
             showAddFriend={isProfile}
+            linkPreviews={linkPreviews}
+            repostOf={repostOf}
+            repostComment={repostComment}
           />
         )
       )}

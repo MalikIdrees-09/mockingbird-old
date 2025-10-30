@@ -1,10 +1,43 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+const loadInitialUiTheme = () => {
+  if (typeof window === "undefined") {
+    return { backgroundType: null, backgroundValue: null, blur: 0, dim: 0 };
+  }
+
+  try {
+    const stored = window.localStorage.getItem("uiTheme");
+    if (!stored) {
+      return { backgroundType: null, backgroundValue: null, blur: 0, dim: 0 };
+    }
+    const parsed = JSON.parse(stored);
+    if (!parsed || typeof parsed !== "object") {
+      return { backgroundType: null, backgroundValue: null, blur: 0, dim: 0 };
+    }
+    return {
+      backgroundType: parsed.backgroundType || null,
+      backgroundValue: parsed.backgroundValue || null,
+      blur: Number.isFinite(parsed.blur) ? parsed.blur : 0,
+      dim: Number.isFinite(parsed.dim) ? parsed.dim : 0,
+    };
+  } catch (err) {
+    console.error("Failed to parse uiTheme from storage", err);
+    return { backgroundType: null, backgroundValue: null, blur: 0, dim: 0 };
+  }
+};
+
 const initialState = {
   mode: "light",
   user: null,
   token: null,
   posts: [],
+  // Messaging state
+  conversations: [],
+  messagesByConversation: {}, // { [conversationId]: Message[] }
+  typingByConversation: {}, // { [conversationId]: { [userId]: boolean } }
+  activeConversationId: null,
+  // UI theme state
+  uiTheme: loadInitialUiTheme(),
 };
 
 export const authSlice = createSlice({
@@ -59,6 +92,65 @@ export const authSlice = createSlice({
         return post;
       });
       state.posts = updatedPosts;
+    },
+    removePost: (state, action) => {
+      const { postId } = action.payload || {};
+      if (!postId) return;
+      state.posts = state.posts.filter((post) => post && post._id !== postId);
+    },
+    // UI theme reducers
+    setBackgroundTheme: (state, action) => {
+      const { backgroundType, backgroundValue, blur = 0, dim = 0 } = action.payload || {};
+      state.uiTheme = { backgroundType, backgroundValue, blur, dim };
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(
+            "uiTheme",
+            JSON.stringify({ backgroundType, backgroundValue, blur, dim })
+          );
+        }
+      } catch (err) {
+        console.error("Failed to persist uiTheme", err);
+      }
+    },
+    clearBackgroundTheme: (state) => {
+      state.uiTheme = { backgroundType: null, backgroundValue: null, blur: 0, dim: 0 };
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem("uiTheme");
+        }
+      } catch (err) {
+        console.error("Failed to clear persisted uiTheme", err);
+      }
+    },
+    // Messaging reducers
+    setConversations: (state, action) => {
+      state.conversations = Array.isArray(action.payload) ? action.payload : [];
+    },
+    setActiveConversation: (state, action) => {
+      state.activeConversationId = action.payload || null;
+    },
+    setMessagesForConversation: (state, action) => {
+      const { conversationId, messages } = action.payload;
+      state.messagesByConversation[conversationId] = Array.isArray(messages) ? messages : [];
+    },
+    addMessageToConversation: (state, action) => {
+      const { conversationId, message } = action.payload;
+      if (!state.messagesByConversation[conversationId]) state.messagesByConversation[conversationId] = [];
+      state.messagesByConversation[conversationId].push(message);
+    },
+    setTypingForConversation: (state, action) => {
+      const { conversationId, userId, isTyping } = action.payload;
+      if (!state.typingByConversation[conversationId]) state.typingByConversation[conversationId] = {};
+      state.typingByConversation[conversationId][userId] = !!isTyping;
+    },
+    markConversationRead: (state, action) => {
+      const { conversationId } = action.payload;
+      const messages = state.messagesByConversation[conversationId] || [];
+      const userId = state.user?._id;
+      messages.forEach(m => {
+        if (m.recipientId === userId && !m.readAt) m.readAt = new Date().toISOString();
+      });
     },
     updateUser: (state, action) => {
       state.user = action.payload;
@@ -119,12 +211,21 @@ export const {
   setFriends, 
   setPosts, 
   setPost, 
+  removePost,
   updateUser,
   setFriendRequests,
   addSentFriendRequest,
   removeSentFriendRequest,
   addFriendRequest,
   removeFriendRequest,
-  addFriend
+  addFriend,
+  setBackgroundTheme,
+  clearBackgroundTheme,
+  setConversations,
+  setActiveConversation,
+  setMessagesForConversation,
+  addMessageToConversation,
+  setTypingForConversation,
+  markConversationRead,
 } = authSlice.actions;
 export default authSlice.reducer;
