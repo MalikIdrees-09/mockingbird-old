@@ -4,7 +4,7 @@ import User from "../models/User.js";
 
 dotenv.config();
 
-const wipeNonAdminUsers = async () => {
+const wipeAllUsers = async () => {
   try {
     console.log("Starting database wipe operation");
     console.log("Connecting to MongoDB...");
@@ -28,19 +28,18 @@ const wipeNonAdminUsers = async () => {
       console.log(`   - ${admin.firstName} ${admin.lastName} (${admin.email})`);
     });
 
-    // Count non-admin users to be deleted
-    const nonAdminCount = await User.countDocuments({ isAdmin: { $ne: true } });
-    console.log(`Non-admin users to be deleted: ${nonAdminCount}`);
+    // Count total users scheduled for deletion
+    console.log(`Total users to be deleted (including admins): ${totalUsersBefore}`);
 
     // Ask for confirmation (in a real script you'd add user input)
-    console.log("\nWARNING: This will permanently delete all non-admin users!");
+    console.log("\nWARNING: This will permanently delete ALL users!");
     console.log("Proceeding with deletion in 3 seconds...");
 
     // Wait 3 seconds
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Delete all non-admin users
-    const deleteResult = await User.deleteMany({ isAdmin: { $ne: true } });
+    // Delete all users, including admins
+    const deleteResult = await User.deleteMany({});
     console.log(`Deleted ${deleteResult.deletedCount} users`);
 
     // Count remaining users
@@ -50,9 +49,11 @@ const wipeNonAdminUsers = async () => {
     // Verify only admin users remain
     const remainingAdmins = await User.find({ isAdmin: true });
     console.log(`Remaining admin users: ${remainingAdmins.length}`);
-    remainingAdmins.forEach(admin => {
-      console.log(`   - ${admin.firstName} ${admin.lastName} (${admin.email})`);
-    });
+    if (remainingAdmins.length > 0) {
+      remainingAdmins.forEach(admin => {
+        console.log(`   - ${admin.firstName} ${admin.lastName} (${admin.email})`);
+      });
+    }
 
     console.log("\nDatabase wipe completed successfully");
     console.log(`📈 Summary:`);
@@ -70,4 +71,4 @@ const wipeNonAdminUsers = async () => {
 };
 
 // Run the script
-wipeNonAdminUsers();
+wipeAllUsers();

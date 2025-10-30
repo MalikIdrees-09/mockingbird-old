@@ -113,12 +113,58 @@ const PostWidget = ({
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const token = useSelector((state) => state.token);
-  const loggedInUserId = useSelector((state) => state.user._id);
-  const loggedInUserFriends = useSelector((state) => state.user.friends || []);
-  const loggedInUserFriendRequests = useSelector((state) => state.user.friendRequests || []);
-  const loggedInUserSentFriendRequests = useSelector((state) => state.user.sentFriendRequests || []);
-  const loggedInUserPicturePath = useSelector((state) => state.user.picturePath);
-  const loggedInUserIsAdmin = useSelector((state) => state.user.isAdmin);
+  const userState = useSelector((state) => state.user || {});
+  const {
+    _id: loggedInUserId,
+    friends: rawLoggedInUserFriends = [],
+    friendRequests: rawLoggedInUserFriendRequests = [],
+    sentFriendRequests: rawLoggedInUserSentFriendRequests = [],
+    picturePath: loggedInUserPicturePath,
+    isAdmin: loggedInUserIsAdmin,
+  } = userState;
+
+  const normalizedPostUserId = useMemo(() => {
+    if (postUserId && typeof postUserId === "object") {
+      return postUserId._id || "";
+    }
+    return postUserId;
+  }, [postUserId]);
+
+  const loggedInUserFriendIds = useMemo(
+    () =>
+      (rawLoggedInUserFriends || [])
+        .map((friend) => {
+          if (!friend) return null;
+          if (typeof friend === "string") return friend;
+          return friend._id || null;
+        })
+        .filter(Boolean),
+    [rawLoggedInUserFriends]
+  );
+
+  const loggedInUserFriendRequestIds = useMemo(
+    () =>
+      (rawLoggedInUserFriendRequests || [])
+        .map((request) => {
+          if (!request) return null;
+          if (typeof request === "string") return request;
+          return request._id || null;
+        })
+        .filter(Boolean),
+    [rawLoggedInUserFriendRequests]
+  );
+
+  const loggedInUserSentFriendRequestIds = useMemo(
+    () =>
+      (rawLoggedInUserSentFriendRequests || [])
+        .map((request) => {
+          if (!request) return null;
+          if (typeof request === "string") return request;
+          return request._id || null;
+        })
+        .filter(Boolean),
+    [rawLoggedInUserSentFriendRequests]
+  );
   const isLiked = Boolean(likes[loggedInUserId]);
   const likeCount = Object.keys(likes).length;
 
@@ -170,19 +216,24 @@ const PostWidget = ({
   const main = palette.neutral.main;
   const primary = palette.primary.main;
 
-  // Determine friend status
-  const getFriendStatus = () => {
-    if (loggedInUserFriends.includes(postUserId)) {
+  const friendStatus = useMemo(() => {
+    if (!normalizedPostUserId) return 'none';
+    if (loggedInUserFriendIds.includes(normalizedPostUserId)) {
       return 'friends';
-    } else if (loggedInUserSentFriendRequests.includes(postUserId)) {
+    }
+    if (loggedInUserSentFriendRequestIds.includes(normalizedPostUserId)) {
       return 'request_sent';
-    } else if (loggedInUserFriendRequests.includes(postUserId)) {
+    }
+    if (loggedInUserFriendRequestIds.includes(normalizedPostUserId)) {
       return 'request_received';
     }
     return 'none';
-  };
-
-  const friendStatus = getFriendStatus();
+  }, [
+    normalizedPostUserId,
+    loggedInUserFriendIds,
+    loggedInUserSentFriendRequestIds,
+    loggedInUserFriendRequestIds,
+  ]);
 
   // Handle friend action updates
   const handleFriendAction = (action, friendId) => {

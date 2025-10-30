@@ -134,7 +134,7 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
       const formData = new FormData();
       formData.append("picture", croppedFile);
 
-      const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/users/${userId}/profile-picture`, {
+      const response = await fetch(`https://mockingbird-backend.idrees.inusers/${userId}/profile-picture`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -173,7 +173,7 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
   const handleRemove = async () => {
     setUploading(true);
     try {
-      const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/users/${userId}/profile-picture`, {
+      const response = await fetch(`https://mockingbird-backend.idrees.inusers/${userId}/profile-picture`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -259,7 +259,7 @@ const ChangeProfilePictureDialog = ({ open, onClose, currentPicture, userId }) =
           {/* Current Picture Preview */}
           {!showCropper && (
             <Avatar
-              src={croppedPreview || (currentPicture ? `https://mockingbird-backend-453975176199.us-central1.run.app/assets/${currentPicture}?v=${profilePictureKey}` : undefined)}
+              src={croppedPreview || (currentPicture ? `https://mockingbird-backend.idrees.inassets/${currentPicture}?v=${profilePictureKey}` : undefined)}
               sx={{
                 width: 120,
                 height: 120,

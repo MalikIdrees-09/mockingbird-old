@@ -1,7 +1,7 @@
 import { setLogout } from "../state";
 
-// Base API URL - use environment variable or fallback to localhost for development
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://mockingbird-backend-453975176199.us-central1.run.app';
+// Base API URL - use environment variable or fallback to new backend domain
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://mockingbird-backend.idrees.in';
 
 // Utility function to handle API responses and check for banned user
 export const handleApiResponse = async (response, dispatch) => {

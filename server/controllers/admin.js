@@ -264,14 +264,9 @@ export const deleteUser = async (req, res) => {
       });
     }
     
-    // Don't allow deleting admin users
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
-    }
-    
-    if (user.isAdmin) {
-      return res.status(403).json({ message: "Cannot delete admin users" });
     }
 
     // Remove this user from all other users' friends lists and friend requests
