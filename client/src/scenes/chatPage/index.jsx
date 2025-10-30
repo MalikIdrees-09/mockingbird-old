@@ -20,7 +20,7 @@ export default function ChatPage() {
   const [recipientId, setRecipientId] = useState(null);
 
   const fetchConversations = async () => {
-    const res = await fetch(`${API_BASE_URL}/messages/conversations`, {
+    const res = await fetch(`https://backend-server-453975176199.us-central1.run.app/messages/conversations`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -50,7 +50,7 @@ export default function ChatPage() {
   const [friendSearch, setFriendSearch] = useState("");
 
   const startConversation = async (recipientId) => {
-    const res = await fetch(`${API_BASE_URL}/messages/conversations`, {
+    const res = await fetch(`https://backend-server-453975176199.us-central1.run.app/messages/conversations`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ recipientId }),
