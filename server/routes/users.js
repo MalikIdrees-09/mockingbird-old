@@ -27,8 +27,10 @@ router.get("/:id/friends", verifyToken, getUserFriends);
 router.get("/:id/friend-requests", verifyToken, getUserFriendRequests);
 
 /* UPDATE */
+// Specific routes first to avoid conflicts with dynamic patterns
 router.patch("/:id/bio", verifyToken, updateBio);
 router.patch("/:id", verifyToken, updateProfile);
+// Friendship routes after specific ones
 router.patch("/:id/:friendId", verifyToken, addRemoveFriend);
 router.post("/:id/friend-request/:friendId", verifyToken, sendFriendRequest);
 router.post("/:id/accept-friend/:friendId", verifyToken, acceptFriendRequest);

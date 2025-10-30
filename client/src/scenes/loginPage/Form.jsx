@@ -34,8 +34,8 @@ const registerSchema = yup.object().shape({
     .matches(/[0-9]/, "Password must contain at least one number")
     .matches(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password must contain at least one special character")
     .required("required"),
-  location: yup.string().required("required"),
-  bio: yup.string().required("required"),
+  location: yup.string(), // Optional
+  bio: yup.string(), // Optional
   // picture: yup.string().required("required"), // Removed required validation for picture
 });
 
@@ -96,7 +96,7 @@ const Form = () => {
 
       console.log("Sending registration request...");
       const savedUserResponse = await fetch(
-        "https://mockingbird-backend-453975176199.us-central1.run.app/auth/register",
+        "https://backend-server-453975176199.us-central1.run.app/auth/register",
         {
           method: "POST",
           body: formData,
@@ -129,7 +129,7 @@ const Form = () => {
   const login = async (values, onSubmitProps) => {
     try {
       console.log("Attempting login with:", values);
-      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/auth/login", {
+      const response = await fetch("https://backend-server-453975176199.us-central1.run.app/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
@@ -178,7 +178,7 @@ const Form = () => {
     setResetLoading(true);
 
     try {
-      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/auth/request-password-reset", {
+      const response = await fetch("https://backend-server-453975176199.us-central1.run.app/auth/request-password-reset", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -261,7 +261,7 @@ const Form = () => {
                 {isRegister && (
                   <>
                     <TextField
-                      label="First Name"
+                      label="First Name *"
                       onBlur={handleBlur}
                       onChange={handleChange}
                       value={values.firstName || ""}
@@ -274,7 +274,7 @@ const Form = () => {
                       sx={{ gridColumn: "span 2" }}
                     />
                     <TextField
-                      label="Last Name"
+                      label="Last Name *"
                       onBlur={handleBlur}
                       onChange={handleChange}
                       value={values.lastName || ""}
@@ -347,7 +347,7 @@ const Form = () => {
                 )}
 
                 <TextField
-                  label="Email"
+                  label="Email *"
                   onBlur={handleBlur}
                   onChange={handleChange}
                   value={values.email || ""}
@@ -358,7 +358,7 @@ const Form = () => {
                   sx={{ gridColumn: "span 4" }}
                 />
                 <TextField
-                  label="Password"
+                  label="Password *"
                   type="password"
                   onBlur={handleBlur}
                   onChange={handleChange}

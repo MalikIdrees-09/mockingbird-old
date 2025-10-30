@@ -6,7 +6,7 @@ import { verifyToken } from "../middleware/auth.js";
 /* FILE STORAGE */
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "/assets");
+    cb(null, "public/assets");
   },
   filename: function (req, file, cb) {
     // Add timestamp to prevent filename conflicts

@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { getFeedPosts, getUserPosts, getPostById, likePost, addComment, editComment, editPost, deletePost, deleteComment, searchPosts } from "../controllers/posts.js";
+import { getFeedPosts, getUserPosts, getPostById, likePost, reactToPost, addComment, editComment, editPost, deletePost, deleteComment, searchPosts, getLinkPreview, repostPost, undoRepost } from "../controllers/posts.js";
 import { verifyToken } from "../middleware/auth.js";
 import path from "path";
 
@@ -9,7 +9,7 @@ const router = express.Router();
 /* FILE STORAGE CONFIGURATION */
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "/assets");
+    cb(null, "public/assets");
   },
   filename: function (req, file, cb) {
     const timestamp = Date.now();
@@ -54,6 +54,9 @@ router.get("/:postId", verifyToken, getPostById);
 router.get("/:postId/public", getPostById); // Public route for viewing posts without auth
 router.get("/:userId/posts", verifyToken, getUserPosts);
 
+// Link preview route (public, no auth required)
+router.post("/preview", getLinkPreview);
+
 // Create optional upload middleware
 const uploadOptional = (req, res, next) => {
   upload.single("media")(req, res, (err) => {
@@ -68,10 +71,13 @@ const uploadOptional = (req, res, next) => {
 
 /* UPDATE */
 router.patch("/:id/like", verifyToken, likePost);
-router.patch("/:id", verifyToken, uploadOptional, editPost);
-router.delete("/:id", verifyToken, deletePost);
+router.patch("/:id/react", verifyToken, reactToPost);
 router.post("/:id/comment", verifyToken, upload.single("media"), addComment);
 router.patch("/:id/comment/:commentId", verifyToken, editComment);
 router.delete("/:id/comment/:commentId", verifyToken, deleteComment);
+router.patch("/:id", verifyToken, uploadOptional, editPost);
+router.delete("/:id", verifyToken, deletePost);
+router.post("/:id/repost", verifyToken, repostPost);
+router.delete("/:id/repost", verifyToken, undoRepost);
 
 export default router;

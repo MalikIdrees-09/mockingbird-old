@@ -113,11 +113,23 @@ const PostPage = () => {
             picturePath={post.picturePath}
             userPicturePath={post.userPicturePath}
             likes={post.likes || {}}
+            reactions={post.reactions || {}}
+            reactionCounts={post.reactionCounts || {}}
+            userReaction={post.userReaction || null}
             comments={post.comments || []}
             mediaPath={post.mediaPath}
             mediaType={post.mediaType}
             mediaSize={post.mediaSize}
+            mediaPaths={post.mediaPaths}
+            mediaTypes={post.mediaTypes}
+            mediaSizes={post.mediaSizes}
+            mediaDurations={post.mediaDurations}
+            mediaDuration={post.mediaDuration}
+            isDetailView={false}
+            isAdmin={post.userId?.isAdmin || false}
+            pinned={post.pinned || false}
             showAddFriend={true}
+            linkPreviews={post.linkPreviews || []}
           />
         </Box>
       </Box>

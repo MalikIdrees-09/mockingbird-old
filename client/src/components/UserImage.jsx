@@ -1,8 +1,35 @@
+import { useState, useEffect } from "react";
 import { Box, Avatar } from "@mui/material";
 import { API_BASE_URL } from "../utils/api";
 
 const UserImage = ({ image, size = "60px", name = "" }) => {
-  const imageUrl = image ? `${API_BASE_URL}/assets/${image}` : null;
+  const [profilePictureKey, setProfilePictureKey] = useState(Date.now());
+
+  // Listen for profile picture updates
+  useEffect(() => {
+    const handleProfilePictureUpdate = () => {
+      setProfilePictureKey(Date.now());
+    };
+
+    window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate);
+
+    return () => {
+      window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate);
+    };
+  }, []);
+
+  let imageUrl = null;
+  if (image) {
+    const isAbsolute = /^https?:\/\//i.test(image);
+    if (isAbsolute) {
+      imageUrl = `${image}${image.includes('?') ? '&' : '?'}v=${profilePictureKey}`;
+    } else if (image.startsWith('/assets/')) {
+      const base = API_BASE_URL.replace(/\/$/, '');
+      imageUrl = `${base}${image}${image.includes('?') ? '&' : '?'}v=${profilePictureKey}`;
+    } else {
+      imageUrl = `${API_BASE_URL}/assets/${image}?v=${profilePictureKey}`;
+    }
+  }
   
   // If no image, show initials
   if (!imageUrl) {

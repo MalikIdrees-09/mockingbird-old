@@ -41,28 +41,9 @@ const register = async (req, res) => {
       });
     }
 
-    // Validate password strength
-    if (password.length < 8) {
-      console.log("Password too short:", password.length);
-      return res.status(400).json({
-        error: "Password must be at least 8 characters long",
-        msg: "Password must be at least 8 characters long"
-      });
-    }
-
-    // Check for password complexity requirements
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-
-    if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
-      console.log("Password doesn't meet complexity requirements");
-      return res.status(400).json({
-        error: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-        msg: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
-      });
-    }
+    console.log("Hashing password...");
+    const salt = await bcrypt.genSalt();
+    const passwordHash = await bcrypt.hash(password, salt);
 
     console.log("Creating new user...");
     
@@ -391,23 +372,10 @@ const changePassword = async (req, res) => {
     }
 
     // Validate new password strength
-    if (newPassword.length < 8) {
+    if (newPassword.length < 6) {
       return res.status(400).json({
-        msg: "New password must be at least 8 characters long",
+        msg: "New password must be at least 6 characters long",
         error: "PASSWORD_TOO_SHORT"
-      });
-    }
-
-    // Check for password complexity requirements
-    const hasUpperCase = /[A-Z]/.test(newPassword);
-    const hasLowerCase = /[a-z]/.test(newPassword);
-    const hasNumbers = /\d/.test(newPassword);
-    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword);
-
-    if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
-      return res.status(400).json({
-        msg: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-        error: "PASSWORD_TOO_WEAK"
       });
     }
 
@@ -735,23 +703,10 @@ const resetPassword = async (req, res) => {
     }
 
     // Validate password strength
-    if (newPassword.length < 8) {
+    if (newPassword.length < 6) {
       return res.status(400).json({
-        msg: "Password must be at least 8 characters long",
+        msg: "Password must be at least 6 characters long",
         error: "PASSWORD_TOO_SHORT"
-      });
-    }
-
-    // Check for password complexity requirements
-    const hasUpperCase = /[A-Z]/.test(newPassword);
-    const hasLowerCase = /[a-z]/.test(newPassword);
-    const hasNumbers = /\d/.test(newPassword);
-    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword);
-
-    if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
-      return res.status(400).json({
-        msg: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-        error: "PASSWORD_TOO_WEAK"
       });
     }
 

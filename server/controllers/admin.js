@@ -326,19 +326,19 @@ export const deletePost = async (req, res) => {
 
     // Add post media file if it exists
     if (post.mediaPath) {
-      filesToDelete.push(path.join("/assets", post.mediaPath));
+      filesToDelete.push(path.join("public/assets", post.mediaPath));
     }
 
     // Add legacy picturePath if it exists and is different from mediaPath
     if (post.picturePath && post.picturePath !== post.mediaPath) {
-      filesToDelete.push(path.join("/assets", post.picturePath));
+      filesToDelete.push(path.join("public/assets", post.picturePath));
     }
 
     // Add comment media files
     if (post.comments && post.comments.length > 0) {
       post.comments.forEach(comment => {
         if (comment.mediaPath) {
-          filesToDelete.push(path.join("/assets", comment.mediaPath));
+          filesToDelete.push(path.join("public/assets", comment.mediaPath));
         }
       });
     }
@@ -416,7 +416,7 @@ export const moderateComment = async (req, res) => {
 
     // If comment has media, delete the file
     if (commentToDelete.mediaPath) {
-      const filePath = path.join("/assets", commentToDelete.mediaPath);
+      const filePath = path.join("public/assets", commentToDelete.mediaPath);
       try {
         await fs.unlink(filePath);
         console.log(`🗑️ Deleted comment media file: ${filePath}`);

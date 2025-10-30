@@ -21,61 +21,150 @@ import {
   ListItemIcon,
   ListItemText,
   Tooltip,
+  TextField,
 } from "@mui/material";
 import FlexBetween from "components/FlexBetween";
 import Dropzone from "react-dropzone";
 import UserImage from "components/UserImage";
 import WidgetWrapper from "components/WidgetWrapper";
 import ProfanityWarningDialog from "components/ProfanityWarningDialog";
-import { useState, useEffect, useRef } from "react";
+import LinkPreview from "components/LinkPreview";
+import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setPosts } from "state";
-import { TextareaAutosize } from '@mui/material';
 import { API_BASE_URL } from "../../utils/api";
 
 const MyPostWidget = ({ picturePath }) => {
   const dispatch = useDispatch();
-  const [mediaType, setMediaType] = useState(null); // 'image', 'video', 'audio', 'clip'
-  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaFiles, setMediaFiles] = useState([]); // Array of media files
   const [post, setPost] = useState("");
   const [anchorEl, setAnchorEl] = useState(null); // For mobile menu
   const [profanityWarning, setProfanityWarning] = useState({ open: false, message: "", details: "" });
-  const { palette } = useTheme();
+  const [mediaType, setMediaType] = useState('image'); // Track the current media type
+  const [linkPreviews, setLinkPreviews] = useState([]); // Store link preview data
+  const theme = useTheme();
+  const { palette } = theme;
   const { _id } = useSelector((state) => state.user);
   const token = useSelector((state) => state.token);
   const isNonMobileScreens = useMediaQuery("(min-width: 1000px)");
   const mediumMain = palette.neutral.mediumMain;
   const medium = palette.neutral.medium;
 
-  // Function to create and track blob URLs
-  const createBlobUrl = (file) => {
-    const url = URL.createObjectURL(file);
-    blobUrlsRef.current.push(url);
-    return url;
+  // Extract URLs from text
+  const extractUrls = (text) => {
+    if (!text) return [];
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.match(urlRegex) || [];
+  };
+
+  // Fetch link preview for a URL with retry logic
+  const fetchLinkPreview = async (url, retryCount = 0) => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(`${API_BASE_URL}/posts/preview`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const metadata = await response.json();
+        return metadata;
+      } else if (response.status === 429 && retryCount < 2) {
+        // Rate limited, wait and retry
+        await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+        return fetchLinkPreview(url, retryCount + 1);
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log(`⏱️ Preview fetch timeout for: ${url}`);
+      } else {
+        console.error('Failed to fetch link preview:', error);
+      }
+    }
+    return null;
+  };
+
+  // Update link previews when post text changes
+  useEffect(() => {
+    const updateLinkPreviews = async () => {
+      const urls = extractUrls(post);
+      if (urls.length === 0) {
+        setLinkPreviews([]);
+        return;
+      }
+
+      // Fetch preview for first URL only (to avoid spam)
+      const firstUrl = urls[0];
+      if (firstUrl && !linkPreviews.find(preview => preview.url === firstUrl)) {
+        const preview = await fetchLinkPreview(firstUrl);
+        if (preview) {
+          setLinkPreviews([preview]);
+        }
+      }
+    };
+
+    // Debounce the preview updates
+    const timeoutId = setTimeout(updateLinkPreviews, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [post, linkPreviews]);
+
+  // Remove a link preview
+  const removeLinkPreview = (urlToRemove) => {
+    setLinkPreviews(linkPreviews.filter(preview => preview.url !== urlToRemove));
   };
 
   // Track blob URLs for cleanup
   const blobUrlsRef = useRef([]);
 
-  // Cleanup blob URLs on unmount or mediaFile change
-  useEffect(() => {
-    return () => {
-      // Clean up all blob URLs when component unmounts
-      blobUrlsRef.current.forEach(url => {
-        URL.revokeObjectURL(url);
-      });
-      blobUrlsRef.current = [];
-    };
-  }, []);
+  // State to track blob URLs for each file
+  const [fileBlobUrls, setFileBlobUrls] = useState(new Map());
 
-  // Clean up blob URLs when mediaFile changes
-  useEffect(() => {
-    // Clean up previous blob URLs
-    blobUrlsRef.current.forEach(url => {
-      URL.revokeObjectURL(url);
+  // Function to get or create blob URL for a file
+  const getBlobUrl = (file) => {
+    if (fileBlobUrls.has(file)) {
+      return fileBlobUrls.get(file);
+    }
+
+    const url = URL.createObjectURL(file);
+    blobUrlsRef.current.push(url);
+
+    // Update the map with the new blob URL
+    setFileBlobUrls(prev => new Map(prev.set(file, url)));
+    return url;
+  };
+
+  // Clean up blob URLs only when specific files are removed
+  const cleanupBlobUrls = (filesToRemove = []) => {
+    if (filesToRemove.length === 0) return;
+
+    // For each file being removed, revoke its blob URL and remove from map
+    filesToRemove.forEach(file => {
+      if (fileBlobUrls.has(file)) {
+        const url = fileBlobUrls.get(file);
+        URL.revokeObjectURL(url);
+        // Remove from tracking arrays
+        const index = blobUrlsRef.current.indexOf(url);
+        if (index > -1) {
+          blobUrlsRef.current.splice(index, 1);
+        }
+      }
     });
-    blobUrlsRef.current = [];
-  }, [mediaFile]);
+
+    // Update the file blob URLs map to remove the deleted files
+    setFileBlobUrls(prev => {
+      const newMap = new Map(prev);
+      filesToRemove.forEach(file => newMap.delete(file));
+      return newMap;
+    });
+  };
 
   // Media type configurations
   const mediaConfigs = {
@@ -118,12 +207,23 @@ const MyPostWidget = ({ picturePath }) => {
       const formData = new FormData();
       formData.append("userId", _id);
       formData.append("description", post);
-      
-      if (mediaFile) {
-        formData.append("media", mediaFile);
-        formData.append("mediaPath", mediaFile.name);
-        formData.append("mediaType", mediaType);
+
+      // Determine media type from first file if files exist
+      if (mediaFiles.length > 0) {
+        const firstFile = mediaFiles[0];
+        if (firstFile.type.startsWith('audio/')) {
+          formData.append("mediaType", "audio");
+        } else if (firstFile.type.startsWith('video/')) {
+          formData.append("mediaType", "video");
+        } else {
+          formData.append("mediaType", "image");
+        }
       }
+
+      // Add multiple media files
+      mediaFiles.forEach((file, index) => {
+        formData.append("media", file);
+      });
 
       const response = await fetch(`${API_BASE_URL}/posts`, {
         method: "POST",
@@ -136,11 +236,16 @@ const MyPostWidget = ({ picturePath }) => {
         dispatch(setPosts({ posts }));
         
         // Reset form completely
-        setMediaFile(null);
-        setMediaType(null);
+        setMediaFiles([]);
         setPost("");
         setAnchorEl(null); // Close mobile menu if open
         setProfanityWarning({ open: false, message: "", details: "" }); // Reset profanity warning
+        
+        // Clean up blob URLs after successful post
+        fileBlobUrls.forEach((url) => {
+          URL.revokeObjectURL(url);
+        });
+        setFileBlobUrls(new Map());
       } else {
         const errorData = await response.json();
         console.error("Failed to create post:", response.status, response.statusText);
@@ -162,26 +267,35 @@ const MyPostWidget = ({ picturePath }) => {
     }
   };
 
-  const handleMediaSelect = (type) => {
-    if (mediaType === type) {
-      // Toggle off if same type clicked
-      setMediaType(null);
-      setMediaFile(null);
-    } else {
-      setMediaType(type);
-      setMediaFile(null);
-    }
-  };
-
   const handleFileUpload = (acceptedFiles) => {
     if (acceptedFiles && acceptedFiles.length > 0) {
-      setMediaFile(acceptedFiles[0]);
+      // Add new files to existing media files (up to 10 total)
+      const newFiles = [...mediaFiles, ...acceptedFiles].slice(0, 10);
+      setMediaFiles(newFiles);
     }
   };
 
-  const clearMedia = () => {
-    setMediaFile(null);
-    setMediaType(null);
+  const removeMediaFile = (index) => {
+    const fileToRemove = mediaFiles[index];
+    const newFiles = mediaFiles.filter((_, i) => i !== index);
+
+    // Clean up blob URLs for removed files
+    cleanupBlobUrls([fileToRemove]);
+
+    setMediaFiles(newFiles);
+  };
+
+  const clearAllMedia = () => {
+    // Clean up all blob URLs before clearing files
+    fileBlobUrls.forEach(url => {
+      URL.revokeObjectURL(url);
+    });
+    blobUrlsRef.current.forEach(url => {
+      URL.revokeObjectURL(url);
+    });
+    blobUrlsRef.current = [];
+    setFileBlobUrls(new Map());
+    setMediaFiles([]);
   };
 
   const getFileSize = (bytes) => {
@@ -200,252 +314,400 @@ const MyPostWidget = ({ picturePath }) => {
     setAnchorEl(null);
   };
 
+  const handleMediaSelect = (type) => {
+    setMediaType(type);
+    // Create a file input element
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = type === 'image'; // Only allow multiple for images
+    input.accept = Object.keys(mediaConfigs[type].accept).join(',');
+
+    input.onchange = (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const newFiles = Array.from(e.target.files);
+        // Combine with existing files, but limit to 10 total
+        const updatedFiles = [...mediaFiles, ...newFiles].slice(0, 10);
+        setMediaFiles(updatedFiles);
+      }
+    };
+    input.click();
+  };
+
   const handleMobileMediaSelect = (type) => {
-    handleMediaSelect(type);
+    setMediaType(type);
     handleMobileMenuClose();
+    // Create a file input element
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = type === 'image'; // Only allow multiple for images
+    input.accept = Object.keys(mediaConfigs[type].accept).join(',');
+
+    input.onchange = (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const newFiles = Array.from(e.target.files);
+        // Combine with existing files, but limit to 10 total
+        const updatedFiles = [...mediaFiles, ...newFiles].slice(0, 10);
+        setMediaFiles(updatedFiles);
+      }
+    };
+    input.click();
   };
 
   return (
-    <WidgetWrapper>
-      <FlexBetween gap="1.5rem">
+    <WidgetWrapper 
+      sx={{
+        borderRadius: '20px',
+        overflow: 'visible',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 8px 30px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3)'
+            : '0 8px 30px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08)',
+        }
+      }}
+    >
+      <FlexBetween gap="1.5rem" alignItems="flex-start">
         <UserImage image={picturePath} />
         <Box sx={{ width: "100%" }}>
-          <TextareaAutosize
-            placeholder="What's on your mind..."
-            onChange={(e) => setPost(e.target.value)}
-            value={post}
-            minRows={1}
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
             maxRows={10}
-            onKeyDown={(e) => {
-              // Allow new lines with Enter, prevent form submission
-              if (e.key === 'Enter' && !e.shiftKey) {
-                // Let it create a new line naturally
-                return;
-              }
-            }}
-            style={{
-              width: "100%",
-              backgroundColor: palette.neutral.light,
-              borderRadius: "2rem",
-              padding: "1rem 2rem",
-              border: "none",
-              outline: "none",
-              fontSize: "1rem",
-              fontFamily: "inherit",
-              resize: "none",
-              boxSizing: "border-box"
+            placeholder="What's on your mind..."
+            value={post}
+            onChange={(e) => setPost(e.target.value)}
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px',
+                backgroundColor: theme.palette.background.paper,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'rgba(0,0,0,0.1)',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: palette.primary.main,
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: palette.primary.main,
+                  borderWidth: '1px',
+                },
+              },
+              '& .MuiOutlinedInput-input': {
+                fontSize: '1rem',
+                fontFamily: 'inherit',
+                padding: '12px 16px',
+                '&::placeholder': {
+                  color: palette.neutral.medium,
+                  opacity: 0.8,
+                },
+              },
             }}
           />
-          {post && (
-            <Box sx={{ mt: 1, p: 2, backgroundColor: palette.background.alt, borderRadius: "8px" }}>
-              <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>Preview:</Typography>
-              <div style={{ fontSize: "0.9rem" }}>
-                {post.split('\n').map((line, i) => (
-                  <div key={i}>
-                    {line.split(' ').map((word, j) => {
-                      if (word.startsWith('**') && word.endsWith('**')) {
-                        return <strong key={j}>{word.slice(2, -2)} </strong>;
-                      } else if (word.startsWith('*') && word.endsWith('*')) {
-                        return <em key={j}>{word.slice(1, -1)} </em>;
-                      }
-                      return <span key={j}>{word} </span>;
-                    })}
-                  </div>
-                ))}
-              </div>
-            </Box>
-          )}
         </Box>
       </FlexBetween>
-      
-      {/* Media Upload Section */}
-      {mediaType && (
-        <Box
-          border={`1px solid ${medium}`}
-          borderRadius="12px"
-          mt="1rem"
-          p="1rem"
-          sx={{ backgroundColor: palette.background.alt }}
-        >
-          <FlexBetween mb="0.5rem">
-            <Chip
-              icon={mediaConfigs[mediaType].icon}
-              label={mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}
-              color="primary"
-              size="small"
-              sx={{ backgroundColor: mediaConfigs[mediaType].color, color: "white" }}
+
+      {/* Link Previews */}
+      {linkPreviews.length > 0 && (
+        <Box sx={{ mt: 1 }}>
+          {linkPreviews.map((preview, index) => (
+            <LinkPreview
+              key={index}
+              preview={preview}
+              onRemove={() => removeLinkPreview(preview.url)}
+              showRemoveButton={true}
             />
-            <IconButton onClick={clearMedia} size="small">
-              <Close />
-            </IconButton>
-          </FlexBetween>
-          
-          <Dropzone
-            accept={mediaConfigs[mediaType].accept}
-            multiple={false}
-            onDrop={handleFileUpload}
-            maxSize={10 * 1024 * 1024} // 10MB for all media types
-          >
-            {({ getRootProps, getInputProps, isDragActive }) => (
-              <Box
-                {...getRootProps()}
-                border={`2px dashed ${mediaConfigs[mediaType].color}`}
-                borderRadius="8px"
-                p="2rem"
-                textAlign="center"
-                sx={{
-                  cursor: "pointer",
-                  backgroundColor: isDragActive ? palette.primary.light + "20" : "transparent",
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    backgroundColor: palette.primary.light + "10",
-                    borderColor: palette.primary.dark,
-                  }
-                }}
-              >
-                <input {...getInputProps()} />
-                {!mediaFile ? (
-                  <Box>
-                    {mediaConfigs[mediaType].icon}
-                    <Typography variant="body1" mt={1}>
-                      {isDragActive ? `Drop your ${mediaType} here` : mediaConfigs[mediaType].label}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      Max size: 10MB
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Stack spacing={1} alignItems="center">
-                    <FlexBetween width="100%">
-                      <Box display="flex" alignItems="center" gap={1}>
-                        {mediaConfigs[mediaType].icon}
-                        <Typography variant="body2" fontWeight="500">
-                          {mediaFile.name}
-                        </Typography>
-                      </Box>
-                      <Box display="flex" alignItems="center" gap={0.5}>
-                        <Tooltip title="Change file">
-                          <IconButton size="small" sx={{ color: palette.primary.main }}>
-                            <EditOutlined fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Remove media">
-                          <IconButton size="small" onClick={clearMedia} sx={{ color: palette.error.main }}>
-                            <Close fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </FlexBetween>
-                    <Typography variant="caption" color="textSecondary">
-                      {getFileSize(mediaFile.size)}
-                    </Typography>
-                    
-                    {/* Preview for images */}
-                    {mediaType === 'image' && (
-                      <Box
-                        component="img"
-                        src={createBlobUrl(mediaFile)}
-                        alt="Preview"
-                        sx={{
-                          maxWidth: "200px",
-                          maxHeight: "150px",
-                          borderRadius: "8px",
-                          mt: 1
-                        }}
-                      />
-                    )}
-                    
-                    {/* Preview for clips */}
-                    {mediaType === 'clip' && (
-                      <Box
-                        component="video"
-                        src={createBlobUrl(mediaFile)}
-                        controls
-                        sx={{
-                          maxWidth: "200px",
-                          maxHeight: "150px",
-                          borderRadius: "8px",
-                          mt: 1
-                        }}
-                      />
-                    )}
-                  </Stack>
-                )}
-              </Box>
-            )}
-          </Dropzone>
+          ))}
         </Box>
       )}
 
-      <Divider sx={{ margin: "1.25rem 0" }} />
+      {/* Enhanced Media Upload Section */}
+      {mediaFiles.length > 0 && (
+        <Box
+          border={`1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`}
+          borderRadius="16px"
+          mt="1.5rem"
+          p="1.5rem"
+          sx={{
+            backgroundColor: theme.palette.mode === 'dark'
+              ? 'rgba(255,255,255,0.05)'
+              : 'rgba(0,0,0,0.03)',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <FlexBetween mb="1rem">
+            <Chip
+              icon={<ImageOutlined />}
+              label={`${mediaFiles.length} Media File${mediaFiles.length > 1 ? 's' : ''} Selected`}
+              size="small"
+              sx={{
+                backgroundColor: palette.primary.main + '20',
+                color: palette.primary.main,
+                fontWeight: 600,
+                '& .MuiChip-icon': { color: palette.primary.main }
+              }}
+            />
+            <IconButton
+              onClick={clearAllMedia}
+              size="small"
+              sx={{
+                backgroundColor: 'rgba(233, 67, 53, 0.1)',
+                color: '#e94335',
+                '&:hover': {
+                  backgroundColor: 'rgba(233, 67, 53, 0.2)',
+                  transform: 'scale(1.1)'
+                }
+              }}
+            >
+              <Close />
+            </IconButton>
+          </FlexBetween>
+
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {mediaFiles.map((file, index) => {
+              const isAudio = file.type.startsWith('audio/');
+              const isVideo = file.type.startsWith('video/');
+              const isImage = file.type.startsWith('image/');
+
+              return (
+                <Box
+                  key={index}
+                  sx={{
+                    position: "relative",
+                    border: `1px solid ${palette.neutral.light}`,
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                    width: "120px",
+                    height: "90px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: isAudio ? palette.accent?.light + "20" || palette.primary.light + "20" : "transparent"
+                  }}
+                >
+                  {isImage && (
+                    <Box
+                      component="img"
+                      src={getBlobUrl(file)}
+                      alt={`Preview ${index + 1}`}
+                      sx={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        borderRadius: "8px"
+                      }}
+                    />
+                  )}
+                  {isVideo && (
+                    <Box
+                      component="video"
+                      src={getBlobUrl(file)}
+                      sx={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        borderRadius: "8px"
+                      }}
+                    />
+                  )}
+                  {isAudio && (
+                    <Box sx={{ textAlign: "center", p: 1 }}>
+                      <MicOutlined sx={{ fontSize: 40, color: palette.accent?.main || palette.primary.dark }} />
+                      <Typography variant="caption" display="block" sx={{ mt: 0.5, fontSize: "0.7rem" }}>
+                        {file.name.length > 15 ? file.name.substring(0, 12) + '...' : file.name}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  <IconButton
+                    size="small"
+                    onClick={() => removeMediaFile(index)}
+                    sx={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      backgroundColor: "rgba(0,0,0,0.6)",
+                      color: "white",
+                      "&:hover": {
+                        backgroundColor: "rgba(0,0,0,0.8)"
+                      },
+                      width: 24,
+                      height: 24
+                    }}
+                  >
+                    <Close fontSize="small" />
+                  </IconButton>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      position: "absolute",
+                      bottom: 4,
+                      left: 4,
+                      backgroundColor: "rgba(0,0,0,0.6)",
+                      color: "white",
+                      padding: "2px 4px",
+                      borderRadius: "4px",
+                      fontSize: "0.6rem"
+                    }}
+                  >
+                    {getFileSize(file.size)}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+
+          {/* Add more media button */}
+          {mediaFiles.length < 10 && (
+            <Box mt={2}>
+              <Dropzone
+                accept={mediaConfigs[mediaType].accept}
+                multiple={true}
+                onDrop={handleFileUpload}
+                maxSize={mediaType === 'audio' ? 50 * 1024 * 1024 : 10 * 1024 * 1024} // 50MB for audio, 10MB for others
+              >
+                {({ getRootProps, getInputProps, isDragActive }) => (
+                  <Box
+                    {...getRootProps()}
+                    border={`2px dashed ${mediaConfigs[mediaType].color}`}
+                    borderRadius="8px"
+                    p="1rem"
+                    textAlign="center"
+                    sx={{
+                      cursor: "pointer",
+                      backgroundColor: isDragActive ? mediaConfigs[mediaType].color + "20" : "transparent",
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        backgroundColor: mediaConfigs[mediaType].color + "10",
+                        borderColor: mediaConfigs[mediaType].color,
+                      }
+                    }}
+                  >
+                    <input {...getInputProps()} />
+                    {React.cloneElement(mediaConfigs[mediaType].icon, {
+                      sx: { color: mediaConfigs[mediaType].color, mb: 1, fontSize: 32 }
+                    })}
+                    <Typography variant="body2">
+                      {isDragActive ? `Drop ${mediaType} here` : `Add more ${mediaType}`}
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Max 10 files, {mediaType === 'audio' ? '50MB' : '10MB'} each
+                    </Typography>
+                  </Box>
+                )}
+              </Dropzone>
+            </Box>
+          )}
+        </Box>
+      )}
+
+      <Divider sx={{ margin: "1.5rem 0", borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
 
       <FlexBetween>
-        {/* Image Button */}
+        {/* Enhanced Image Button */}
         <FlexBetween 
-          gap="0.25rem" 
-          onClick={() => handleMediaSelect('image')}
+          gap="0.5rem" 
+          onClick={() => {
+            // Trigger file input for image selection
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                handleFileUpload(Array.from(e.target.files));
+              }
+            };
+            input.click();
+          }}
           sx={{ 
             cursor: "pointer",
-            padding: "0.5rem",
-            borderRadius: "8px",
-            backgroundColor: mediaType === 'image' ? palette.primary.light + "20" : "transparent",
-            "&:hover": { backgroundColor: palette.primary.light + "10" }
+            padding: "0.75rem 1rem",
+            borderRadius: "12px",
+            backgroundColor: mediaFiles.length > 0 ? palette.primary.main + '15' : 'transparent',
+            border: `1px solid ${mediaFiles.length > 0 ? palette.primary.main + '30' : 'transparent'}`,
+            transition: 'all 0.3s ease',
+            '&:hover': { 
+              backgroundColor: palette.primary.main + '10',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 4px 12px rgba(218,165,32,0.2)'
+            }
           }}
         >
           <ImageOutlined sx={{ 
-            color: mediaType === 'image' ? palette.primary.main : mediumMain 
+            color: mediaFiles.length > 0 ? palette.primary.main : mediumMain,
+            fontSize: '1.25rem'
           }} />
           <Typography
-            color={mediaType === 'image' ? palette.primary.main : mediumMain}
-            sx={{ fontWeight: mediaType === 'image' ? 600 : 400 }}
+            color={mediaFiles.length > 0 ? palette.primary.main : mediumMain}
+            sx={{ 
+              fontWeight: mediaFiles.length > 0 ? 600 : 400,
+              fontSize: '0.9rem'
+            }}
           >
-            Image
+            Image {mediaFiles.length > 0 && `(${mediaFiles.length})`}
           </Typography>
         </FlexBetween>
 
         {isNonMobileScreens ? (
           <>
-            {/* Clip Button */}
+            {/* Enhanced Clip Button */}
             <FlexBetween 
-              gap="0.25rem"
+              gap="0.5rem"
               onClick={() => handleMediaSelect('clip')}
               sx={{ 
                 cursor: "pointer",
-                padding: "0.5rem",
-                borderRadius: "8px",
-                backgroundColor: mediaType === 'clip' ? palette.warning?.light + "20" : "transparent",
-                "&:hover": { backgroundColor: palette.warning?.light + "10" }
+                padding: "0.75rem 1rem",
+                borderRadius: "12px",
+                backgroundColor: mediaType === 'clip' ? (palette.warning?.main + '15' || palette.secondary.main + '15') : 'transparent',
+                border: `1px solid ${mediaType === 'clip' ? (palette.warning?.main + '30' || palette.secondary.main + '30') : 'transparent'}`,
+                transition: 'all 0.3s ease',
+                '&:hover': { 
+                  backgroundColor: (palette.warning?.main + '10' || palette.secondary.main + '10'),
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(247, 185, 36, 0.2)'
+                }
               }}
             >
               <GifBoxOutlined sx={{ 
-                color: mediaType === 'clip' ? (palette.warning?.main || palette.secondary.dark) : mediumMain 
+                color: mediaType === 'clip' ? (palette.warning?.main || palette.secondary.dark) : mediumMain,
+                fontSize: '1.25rem'
               }} />
               <Typography 
                 color={mediaType === 'clip' ? (palette.warning?.main || palette.secondary.dark) : mediumMain}
-                sx={{ fontWeight: mediaType === 'clip' ? 600 : 400 }}
+                sx={{ fontWeight: mediaType === 'clip' ? 600 : 400, fontSize: '0.9rem' }}
               >
                 Clip
               </Typography>
             </FlexBetween>
 
-            {/* Audio Button */}
+            {/* Enhanced Audio Button */}
             <FlexBetween 
-              gap="0.25rem"
+              gap="0.5rem"
               onClick={() => handleMediaSelect('audio')}
               sx={{ 
                 cursor: "pointer",
-                padding: "0.5rem",
-                borderRadius: "8px",
-                backgroundColor: mediaType === 'audio' ? palette.accent?.light + "20" : "transparent",
-                "&:hover": { backgroundColor: palette.accent?.light + "10" }
+                padding: "0.75rem 1rem",
+                borderRadius: "12px",
+                backgroundColor: mediaType === 'audio' ? (palette.accent?.main + '15' || palette.primary.main + '15') : 'transparent',
+                border: `1px solid ${mediaType === 'audio' ? (palette.accent?.main + '30' || palette.primary.main + '30') : 'transparent'}`,
+                transition: 'all 0.3s ease',
+                '&:hover': { 
+                  backgroundColor: (palette.accent?.main + '10' || palette.primary.main + '10'),
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(160, 82, 45, 0.2)'
+                }
               }}
             >
               <MicOutlined sx={{ 
-                color: mediaType === 'audio' ? (palette.accent?.main || palette.primary.dark) : mediumMain 
+                color: mediaType === 'audio' ? (palette.accent?.main || palette.primary.dark) : mediumMain,
+                fontSize: '1.25rem'
               }} />
               <Typography 
                 color={mediaType === 'audio' ? (palette.accent?.main || palette.primary.dark) : mediumMain}
-                sx={{ fontWeight: mediaType === 'audio' ? 600 : 400 }}
+                sx={{ fontWeight: mediaType === 'audio' ? 600 : 400, fontSize: '0.9rem' }}
               >
                 Audio
               </Typography>
@@ -453,7 +715,16 @@ const MyPostWidget = ({ picturePath }) => {
           </>
         ) : (
           <FlexBetween gap="0.25rem">
-            <IconButton onClick={handleMobileMenuOpen}>
+            <IconButton 
+              onClick={handleMobileMenuOpen}
+              sx={{
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                '&:hover': {
+                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                  transform: 'scale(1.05)'
+                }
+              }}
+            >
               <MoreHorizOutlined sx={{ color: mediumMain }} />
             </IconButton>
             <Menu
@@ -462,9 +733,12 @@ const MyPostWidget = ({ picturePath }) => {
               onClose={handleMobileMenuClose}
               PaperProps={{
                 sx: {
-                  borderRadius: "12px",
+                  borderRadius: "16px",
                   mt: 1,
                   minWidth: 200,
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 8px 30px rgba(0,0,0,0.5)'
+                    : '0 8px 30px rgba(0,0,0,0.15)',
                 }
               }}
             >
@@ -490,21 +764,52 @@ const MyPostWidget = ({ picturePath }) => {
           </FlexBetween>
         )}
 
+        {/* Enhanced Post Button */}
         <Button
-          disabled={!post && !mediaFile}
+          disabled={!post && mediaFiles.length === 0}
           onClick={handlePost}
           sx={{
-            m: "2rem 0",
-            p: "1rem",
-            backgroundColor: palette.primary.main,
-            color: "white",
-            "&:hover": {
-              backgroundColor: palette.primary.dark,
-              color: "white"
+            borderRadius: "25px",
+            padding: "0.75rem 2rem",
+            backgroundColor: (!post && mediaFiles.length === 0)
+              ? (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)')
+              : (post || mediaFiles.length > 0)
+                ? 'linear-gradient(135deg, #FFD700, #FFA500)' // Yellow to orange gradient
+                : `linear-gradient(135deg, ${palette.primary.main}, ${palette.secondary.main})`,
+            color: (!post && mediaFiles.length === 0)
+              ? palette.neutral.medium
+              : (post || mediaFiles.length > 0)
+                ? (theme.palette.mode === 'dark' ? 'white' : 'black')
+                : "white",
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              backgroundColor: (!post && mediaFiles.length === 0)
+                ? (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)')
+                : (post || mediaFiles.length > 0)
+                  ? 'linear-gradient(135deg, #FFE55C, #FFB84D)' // Lighter yellow on hover
+                  : `linear-gradient(135deg, ${palette.primary.dark}, ${palette.secondary.dark})`,
+              transform: (!post && mediaFiles.length === 0) ? 'none' : 'translateY(-2px)',
+              boxShadow: (!post && mediaFiles.length === 0)
+                ? 'none'
+                : (post || mediaFiles.length > 0)
+                  ? '0 8px 25px rgba(255, 215, 0, 0.4)' // Yellow shadow
+                  : '0 8px 25px rgba(218,165,32,0.4)',
+              color: (!post && mediaFiles.length === 0)
+                ? palette.neutral.medium
+                : (post || mediaFiles.length > 0)
+                  ? (theme.palette.mode === 'dark' ? 'white' : 'black')
+                  : "white",
             },
-            "&:disabled": {
-              backgroundColor: palette.neutral.light,
+            '&:disabled': {
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
               color: palette.neutral.medium,
+              cursor: 'not-allowed',
+              transform: 'none',
+              boxShadow: 'none'
             }
           }}
         >

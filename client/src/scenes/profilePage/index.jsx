@@ -17,6 +17,25 @@ const ProfilePage = () => {
   const currentUserId = useSelector((state) => state.user._id);
   const isNonMobileScreens = useMediaQuery("(min-width:1000px)");
 
+  // Force re-render when profile picture updates
+  const [profilePictureKey, setProfilePictureKey] = useState(Date.now());
+
+  useEffect(() => {
+    const handleProfilePictureUpdate = () => {
+      setProfilePictureKey(Date.now());
+      // Also refetch user data if this is the current user's profile
+      if (userId === currentUserId) {
+        getUser();
+      }
+    };
+
+    window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate);
+
+    return () => {
+      window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate);
+    };
+  }, [userId, currentUserId]);
+
   const getUser = async () => {
     const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
       method: "GET",
@@ -44,7 +63,7 @@ const ProfilePage = () => {
         flex={1}
       >
         <Box flexBasis={isNonMobileScreens ? "26%" : undefined}>
-          <UserWidget userId={userId} picturePath={user.picturePath} />
+          <UserWidget userId={userId} picturePath={user.picturePath} key={`user-widget-${profilePictureKey}`} />
           <Box m="2rem 0" />
           <FriendListWidget userId={userId} />
         </Box>
@@ -54,7 +73,7 @@ const ProfilePage = () => {
         >
           {userId === currentUserId && (
             <>
-              <MyPostWidget picturePath={user.picturePath} />
+              <MyPostWidget picturePath={user.picturePath} key={`my-post-${profilePictureKey}`} />
               <Box m="2rem 0" />
             </>
           )}

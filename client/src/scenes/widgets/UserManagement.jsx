@@ -53,7 +53,7 @@ const UserManagement = ({ userId }) => {
       }
       
       const response = await fetch(
-        `https://mockingbird-backend-453975176199.us-central1.run.app/admin/users?page=${page}&search=${searchTerm}`,
+        `https://backend-server-453975176199.us-central1.run.app/admin/users?page=${page}&search=${searchTerm}`,
         {
           method: "GET",
           headers: {
@@ -92,7 +92,7 @@ const UserManagement = ({ userId }) => {
 
   const handleBanUser = async (user) => {
     try {
-      const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/admin/users/${user._id}/ban`, {
+      const response = await fetch(`https://backend-server-453975176199.us-central1.run.app/admin/users/${user._id}/ban`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -142,7 +142,7 @@ const UserManagement = ({ userId }) => {
 
   const handleDeleteUser = async (user) => {
     try {
-      const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/admin/users/${user._id}`, {
+      const response = await fetch(`https://backend-server-453975176199.us-central1.run.app/admin/users/${user._id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,

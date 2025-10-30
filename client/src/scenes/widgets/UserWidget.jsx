@@ -5,7 +5,7 @@ import {
   DescriptionOutlined,
   PhotoCamera,
 } from "@mui/icons-material";
-import { Box, Typography, Divider, useTheme, IconButton, Tooltip } from "@mui/material";
+import { Box, Typography, Divider, useTheme, IconButton, Tooltip, Button } from "@mui/material";
 import UserImage from "components/UserImage";
 import FlexBetween from "components/FlexBetween";
 import WidgetWrapper from "components/WidgetWrapper";
@@ -60,6 +60,9 @@ const UserWidget = ({ userId, picturePath, allowProfileEdits = true }) => {
     isAdmin,
   } = user;
 
+  // Check if current user is friends with this user
+  const isFriend = currentUser?.friends?.includes(userId);
+
   return (
     <WidgetWrapper>
       {/* FIRST ROW */}
@@ -94,20 +97,22 @@ const UserWidget = ({ userId, picturePath, allowProfileEdits = true }) => {
             )}
           </Box>
           <Box>
-            <Typography
-              variant="h4"
-              color={dark}
-              fontWeight="500"
-              sx={{
-                "&:hover": {
-                  color: palette.primary.light,
-                  cursor: "pointer",
-                },
-              }}
-            >
-              {firstName || 'Unknown'} {lastName || 'User'}
-              {isAdmin && <AdminBadge size="small" />}
-            </Typography>
+            <FlexBetween>
+              <Typography
+                variant="h4"
+                color={dark}
+                fontWeight="500"
+                sx={{
+                  "&:hover": {
+                    color: palette.primary.light,
+                    cursor: "pointer",
+                  },
+                }}
+              >
+                {firstName || 'Unknown'} {lastName || 'User'}
+                {isAdmin && <AdminBadge size="small" />}
+              </Typography>
+            </FlexBetween>
             <Typography color={medium}>{friends.filter((friend) => !friend.isBanned).length} friends</Typography>
           </Box>
         </FlexBetween>
@@ -171,8 +176,6 @@ const UserWidget = ({ userId, picturePath, allowProfileEdits = true }) => {
       </Box>
 
       <Divider />
-
-      {/* THIRD ROW */}
 
       {/* Profile Picture Change Dialog */}
       <ChangeProfilePictureDialog

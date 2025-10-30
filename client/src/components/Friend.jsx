@@ -16,6 +16,7 @@ import {
 import FlexBetween from "./FlexBetween";
 import UserImage from "./UserImage";
 import AdminBadge from "./AdminBadge";
+import NewsBadge from "./NewsBadge";
 import { API_BASE_URL } from "../utils/api";
 
 const Friend = ({ 
@@ -26,6 +27,7 @@ const Friend = ({
   isAdmin = false, 
   size = "55px", 
   showAddFriend = true,
+  showAcceptReject = true,
   friendStatus = 'none', // 'none', 'friends', 'request_sent', 'request_received'
   onFriendAction = null
 }) => {
@@ -39,6 +41,21 @@ const Friend = ({
   const primaryDark = palette.primary.dark;
   const main = palette.neutral.main;
   const medium = palette.neutral.medium;
+
+  const normalizedName = name?.toLowerCase() || "";
+  const isProtectedNewsAccount =
+    normalizedName.startsWith('al jazeera') ||
+    normalizedName.startsWith('bbc') ||
+    normalizedName.startsWith('nasa') ||
+    subtitle?.toLowerCase() === 'news feed' ||
+    (typeof userPicturePath === 'string' && (
+      userPicturePath.includes('aljazeera') ||
+      userPicturePath.includes('bbc-logo') ||
+      userPicturePath.includes('nasa-logo')
+    ));
+
+  const canSendFriendRequest = showAddFriend && friendId !== _id && !isProtectedNewsAccount;
+  const canRespondToRequest = showAcceptReject && friendId !== _id;
 
   const sendFriendRequest = async (event) => {
     event.stopPropagation();
@@ -180,15 +197,18 @@ const Friend = ({
           >
             {name || `${friendId || 'Unknown'} User`}
             {isAdmin && <AdminBadge size="small" />}
+            {(!isAdmin && isProtectedNewsAccount) && (
+              <NewsBadge size="small" />
+            )}
           </Typography>
           <Typography color={medium} fontSize="0.75rem">
             {subtitle}
           </Typography>
         </Box>
       </FlexBetween>
-      {showAddFriend && friendId !== _id && (
+      {(canSendFriendRequest || canRespondToRequest) && (
         <Box sx={{ display: "flex", gap: "0.5rem" }}>
-          {friendStatus === 'none' && (
+          {friendStatus === 'none' && canSendFriendRequest && (
             <IconButton
               onClick={(e) => sendFriendRequest(e)}
               sx={{ 
@@ -206,7 +226,7 @@ const Friend = ({
             </IconButton>
           )}
           
-          {friendStatus === 'request_sent' && (
+          {friendStatus === 'request_sent' && canSendFriendRequest && (
             <Button
               onClick={(e) => cancelFriendRequest(e)}
               variant="contained"
@@ -227,7 +247,7 @@ const Friend = ({
             </Button>
           )}
           
-          {friendStatus === 'request_received' && (
+          {friendStatus === 'request_received' && canRespondToRequest && (
             <>
               <Button
                 onClick={(e) => acceptFriendRequest(e)}
@@ -265,25 +285,8 @@ const Friend = ({
           )}
           
           {friendStatus === 'friends' && (
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              backgroundColor: palette.success.light + '40',
-              borderRadius: '20px',
-              px: 2,
-              py: 0.5,
-              border: `1px solid ${palette.success.light}`
-            }}>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: palette.success.dark, 
-                  fontWeight: 600,
-                  fontSize: '0.8rem'
-                }}
-              >
-                You are friends
-              </Typography>
+            <Box sx={{ display: "flex", gap: "0.5rem" }}>
+              {/* Message functionality removed */}
             </Box>
           )}
         </Box>

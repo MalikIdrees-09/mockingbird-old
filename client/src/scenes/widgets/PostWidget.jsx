@@ -14,6 +14,8 @@ import {
   PushPin,
   PushPinOutlined,
   Delete,
+  Repeat,
+  Undo,
 } from "@mui/icons-material";
 import { 
   Box, 
@@ -25,21 +27,32 @@ import {
   TextField,
   Button,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Tooltip,
 } from "@mui/material";
 import FlexBetween from "components/FlexBetween";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { setPost } from "state";
+import { removePost, setPost, setPosts } from "state";
 import { handleBannedUserError } from "utils/api";
 import { API_BASE_URL } from "utils/api";
 import WidgetWrapper from "components/WidgetWrapper";
 import Friend from "components/Friend";
 import AdminBadge from "components/AdminBadge";
+import NewsBadge from "components/NewsBadge";
 import ShareDialog from "components/ShareDialog";
 import UserImage from "components/UserImage";
-import ReactMarkdown from 'react-markdown';
-import LinkRenderer, { MarkdownLink } from 'components/LinkRenderer';
+import ReactionPicker from "components/ReactionPicker";
+import ImageGallery from "components/ImageGallery";
+import AudioWaveform from "components/AudioWaveform";
+import MediaCarousel from "components/MediaCarousel";
+import ReactMarkdown from "react-markdown";
+import LinkRenderer, { MarkdownLink } from "components/LinkRenderer";
+import LinkPreview from 'components/LinkPreview';
 
 const PostWidget = ({
   postId,
@@ -51,30 +64,52 @@ const PostWidget = ({
   picturePath,
   userPicturePath,
   likes,
+  reactions,
+  reactionCounts,
+  userReaction,
   comments,
   mediaPath,
   mediaType,
   mediaSize,
+  mediaPaths,
+  mediaTypes,
+  mediaSizes,
+  mediaDurations,
+  mediaDuration,
   isDetailView = false,
   isAdmin = false,
   pinned = false,
   showAddFriend = true,
+  linkPreviews = [], // Add linkPreviews prop
+  repostOf = null,
+  repostComment = "",
 }) => {
   const [isComments, setIsComments] = useState(isDetailView);
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isCommentsExpanded, setIsCommentsExpanded] = useState(false);
   const [commentText, setCommentText] = useState("");
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [selectedMediaFile, setSelectedMediaFile] = useState(null);
-  const [mediaPreview, setMediaPreview] = useState(null);
-  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [selectedMediaPreview, setSelectedMediaPreview] = useState(null);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [editingCommentText, setEditingCommentText] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState(null);
   const [isCommentFormActive, setIsCommentFormActive] = useState(false);
   const [isEditingPost, setIsEditingPost] = useState(false);
   const [editingPostText, setEditingPostText] = useState(description);
   const [editingPostMediaFile, setEditingPostMediaFile] = useState(null);
   const [editingPostMediaPreview, setEditingPostMediaPreview] = useState(null);
-  const [removeExistingMedia, setRemoveExistingMedia] = useState(false);
+  const [editDescription, setEditDescription] = useState(description || "");
   const [isSubmittingPostEdit, setIsSubmittingPostEdit] = useState(false);
+  const [profilePictureKey, setProfilePictureKey] = useState(Date.now());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  const [mediaPreview, setMediaPreview] = useState(null);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [removeExistingMedia, setRemoveExistingMedia] = useState(false);
+  const [repostDialogOpen, setRepostDialogOpen] = useState(false);
+  const [repostCommentInput, setRepostCommentInput] = useState(repostComment || "");
+  const [isReposting, setIsReposting] = useState(false);
+  const [repostError, setRepostError] = useState(null);
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const token = useSelector((state) => state.token);
@@ -87,6 +122,50 @@ const PostWidget = ({
   const isLiked = Boolean(likes[loggedInUserId]);
   const likeCount = Object.keys(likes).length;
 
+  const postsState = useSelector((state) => state.posts || []);
+
+  const ancestorPost = useMemo(() => {
+    if (!repostOf) return null;
+    if (repostOf && typeof repostOf === "object") return repostOf;
+    return postsState.find((p) => p && p._id === repostOf) || null;
+  }, [repostOf, postsState]);
+
+  const ancestorAuthor = ancestorPost?.userId;
+  const ancestorName = useMemo(() => {
+    if (!ancestorPost) return "Original Post";
+
+    const directName = `${ancestorPost.firstName || ""} ${ancestorPost.lastName || ""}`.trim();
+    if (directName) return directName;
+
+    if (ancestorAuthor && typeof ancestorAuthor === "object") {
+      const authorName = `${ancestorAuthor.firstName || ""} ${ancestorAuthor.lastName || ""}`.trim();
+      if (authorName) return authorName;
+    }
+
+    if (ancestorPost.name) return ancestorPost.name;
+
+    return "Original Post";
+  }, [ancestorPost, ancestorAuthor]);
+  const ancestorPostId = ancestorPost?._id || (typeof repostOf === "string" ? repostOf : null);
+
+  const isRepost = Boolean(ancestorPost);
+  const isOwnPost = loggedInUserId === postUserId;
+  const canUndoRepost = isOwnPost && isRepost;
+
+  // Listen for profile picture updates to force re-render
+  useEffect(() => {
+    const handleProfilePictureUpdate = () => {
+      setProfilePictureKey(Date.now());
+    };
+
+    window.addEventListener('profilePictureUpdated', handleProfilePictureUpdate);
+
+    return () => {
+      window.removeEventListener('profilePictureUpdated', handleProfilePictureUpdate);
+    };
+  }, []);
+
+  const theme = useTheme();
   const { palette } = useTheme();
   const main = palette.neutral.main;
   const primary = palette.primary.main;
@@ -114,9 +193,8 @@ const PostWidget = ({
 
   // Handle post click to navigate to detail page (only when not in detail view)
   const handlePostClick = () => {
-    if (!isDetailView) {
-      navigate(`/post/${postId}`);
-    }
+    // DISABLED: Post click navigation removed per user request
+    return;
   };
 
   // Helper function to format file size
@@ -129,9 +207,19 @@ const PostWidget = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Function to render media based on type
+  // Function to render media based on type - supports both single and multiple media
   const renderMedia = () => {
-    // Only use mediaPath, don't fallback to picturePath for posts without attached media
+    // Check if we have multiple media (new format)
+    if (mediaPaths && mediaPaths.length > 0) {
+      // Use MediaCarousel for all media types
+      return (
+        <Box sx={{ mt: "0.75rem" }}>
+          <MediaCarousel mediaFiles={mediaPaths} mediaTypes={mediaTypes} />
+        </Box>
+      );
+    }
+
+    // Fallback to single media (old format for backward compatibility)
     const currentMediaPath = mediaPath;
     const currentMediaType = mediaType;
     
@@ -184,35 +272,100 @@ const PostWidget = ({
       case 'audio':
         return (
           <Box sx={{ mt: "0.75rem" }}>
-            <Chip
-              icon={<VolumeUpOutlined />}
-              label={`Audio • ${getFileSize(mediaSize)}`}
-              size="small"
-              sx={{ mb: 2, backgroundColor: palette.secondary.light, color: "white" }}
+            <AudioWaveform
+              audioSrc={mediaUrl}
+              audioSize={mediaSize}
+              audioDuration={mediaDuration}
+              showControls={true}
+              showWaveform={true}
+              height={60}
+              color={primary}
             />
-            <Box
-              sx={{
-                backgroundColor: palette.background.alt,
-                borderRadius: "0.75rem",
-                p: "1rem",
-                border: `1px solid ${palette.neutral.light}`,
-              }}
-            >
-              <audio
-                controls
-                style={{ width: "100%" }}
-                preload="metadata"
-              >
-                <source src={mediaUrl} type="audio/mpeg" />
-                Your browser does not support the audio element.
-              </audio>
-            </Box>
           </Box>
         );
       
       default:
         return null;
     }
+  };
+
+  const handleRepost = async () => {
+    try {
+      setIsReposting(true);
+      setRepostError(null);
+
+      const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: loggedInUserId, comment: repostCommentInput.trim() }),
+      });
+
+      const handledResponse = await handleBannedUserError(response, dispatch);
+      if (handledResponse === null) return;
+
+      if (!handledResponse.ok) {
+        const errorData = await handledResponse.json();
+        setRepostError(errorData.message || "Failed to repost");
+        return;
+      }
+
+      const posts = await handledResponse.json();
+      dispatch(setPosts({ posts }));
+      setRepostDialogOpen(false);
+      setRepostCommentInput("");
+    } catch (error) {
+      console.error("Error reposting post:", error);
+      setRepostError("Failed to repost. Please try again.");
+    } finally {
+      setIsReposting(false);
+    }
+  };
+
+  const handleUndoRepost = async () => {
+    try {
+      setIsReposting(true);
+      setRepostError(null);
+
+      const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: loggedInUserId }),
+      });
+
+      const handledResponse = await handleBannedUserError(response, dispatch);
+      if (handledResponse === null) return;
+
+      if (!handledResponse.ok) {
+        const errorData = await handledResponse.json();
+        setRepostError(errorData.message || "Failed to undo repost");
+        return;
+      }
+
+      const posts = await handledResponse.json();
+      dispatch(setPosts({ posts }));
+    } catch (error) {
+      console.error("Error undoing repost:", error);
+      setRepostError("Failed to undo repost. Please try again.");
+    } finally {
+      setIsReposting(false);
+    }
+  };
+
+  const handleOpenRepostDialog = () => {
+    setRepostError(null);
+    setRepostCommentInput("");
+    setRepostDialogOpen(true);
+  };
+
+  const handleViewOriginalPost = () => {
+    if (!ancestorPostId) return;
+    navigate(`/post/${ancestorPostId}`);
   };
 
   const patchLike = async () => {
@@ -231,6 +384,38 @@ const PostWidget = ({
 
     const updatedPost = await handledResponse.json();
     dispatch(setPost({ post: updatedPost }));
+  };
+
+  const handleReactionChange = async (reactionType) => {
+    console.log("🔄 Reacting to post:", postId, "with reaction:", reactionType);
+    
+    const response = await fetch(`${API_BASE_URL}/posts/${postId}/react`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ userId: loggedInUserId, reactionType }),
+    });
+
+    // Check for banned user error
+    const handledResponse = await handleBannedUserError(response, dispatch);
+    if (handledResponse === null) return; // User was logged out
+
+    if (!handledResponse.ok) {
+      console.error("❌ Reaction failed:", handledResponse.status, await handledResponse.text());
+      return;
+    }
+
+    const updatedPost = await handledResponse.json();
+    console.log("✅ Reaction successful:", updatedPost);
+    console.log("🔄 Updating post in state:", updatedPost._id);
+    dispatch(setPost({ post: updatedPost }));
+    
+    // Force a re-render by updating local state if needed
+    setTimeout(() => {
+      console.log("🔄 Post state updated, checking reaction data:", updatedPost.reactionCounts, updatedPost.userReaction);
+    }, 100);
   };
 
   const submitComment = async () => {
@@ -412,7 +597,7 @@ const PostWidget = ({
   };
 
   const submitEditedPost = async () => {
-    if (!editingPostText.trim() && !editingPostMediaFile && !mediaPath && !removeExistingMedia) return;
+    if (!editingPostText.trim() && !editingPostMediaFile && !(mediaPaths && mediaPaths.length > 0) && !mediaPath && !removeExistingMedia) return;
 
     setIsSubmittingPostEdit(true);
     try {
@@ -420,16 +605,14 @@ const PostWidget = ({
       formData.append('userId', loggedInUserId);
       formData.append('description', editingPostText.trim());
 
-      if (editingPostMediaFile) {
+      // Handle multiple media files
+      if (editingPostMediaFile && Array.isArray(editingPostMediaFile)) {
+        editingPostMediaFile.forEach((file, index) => {
+          formData.append('media', file);
+        });
+      } else if (editingPostMediaFile) {
+        // Single file (backward compatibility)
         formData.append('media', editingPostMediaFile);
-        // Determine media type
-        if (editingPostMediaFile.type.startsWith('image/')) {
-          formData.append('mediaType', 'image');
-        } else if (editingPostMediaFile.type.startsWith('audio/')) {
-          formData.append('mediaType', 'audio');
-        } else if (editingPostMediaFile.type.startsWith('video/') || editingPostMediaFile.type === 'image/gif') {
-          formData.append('mediaType', 'clip');
-        }
       } else if (removeExistingMedia) {
         // No media selected and remove existing media flag is set
         formData.append('mediaPath', 'null');
@@ -487,10 +670,6 @@ const PostWidget = ({
   };
 
   const deletePost = async () => {
-    if (!window.confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
-      return;
-    }
-
     try {
       const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
         method: "DELETE",
@@ -506,50 +685,65 @@ const PostWidget = ({
       if (handledResponse === null) return; // User was logged out
 
       if (handledResponse.ok) {
-        // Post deleted successfully - refresh the page or update state
-        alert("Post deleted successfully");
-        // For now, we'll navigate away since the post is gone
         if (isDetailView) {
           navigate("/home");
         } else {
-          // In feed view, we might want to remove the post from state
-          // This is complex, so for now we'll just reload the page
-          window.location.reload();
+          dispatch(removePost({ postId }));
         }
+        setDeleteDialogOpen(false);
+        setDeleteError(null);
       } else {
         const errorData = await handledResponse.json();
         console.error("Error deleting post:", errorData.message);
-        alert(errorData.message || "Failed to delete post");
+        setDeleteError(errorData.message || "Failed to delete post");
       }
     } catch (error) {
       console.error("Error deleting post:", error);
-      alert("Failed to delete post. Please try again.");
+      setDeleteError("Failed to delete post. Please try again.");
     }
   };
 
   return (
     <Box>
-      <WidgetWrapper m="2rem 0">
+      <WidgetWrapper 
+        m="1.5rem 0"
+        sx={{
+          borderRadius: '20px',
+          overflow: 'visible',
+          '&:hover': {
+            transform: 'translateY(-4px)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 12px 40px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.4)'
+              : '0 12px 40px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.1)',
+          }
+        }}
+      >
         <Box sx={{ position: "relative" }}>
           {pinned && (
             <Box
               sx={{
                 position: "absolute",
-                top: 8,
-                right: 8,
-                bgcolor: primary,
+                top: -8,
+                right: -8,
+                bgcolor: 'linear-gradient(135deg, #DAA520, #B8941F)',
                 color: "white",
                 borderRadius: "50%",
-                width: 24,
-                height: 24,
+                width: 32,
+                height: 32,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                zIndex: 1,
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                zIndex: 2,
+                boxShadow: '0 4px 12px rgba(218,165,32,0.4)',
+                animation: 'pulse 2s infinite',
+                '@keyframes pulse': {
+                  '0%': { boxShadow: '0 4px 12px rgba(218,165,32,0.4)' },
+                  '50%': { boxShadow: '0 4px 20px rgba(218,165,32,0.6)' },
+                  '100%': { boxShadow: '0 4px 12px rgba(218,165,32,0.4)' }
+                }
               }}
             >
-              <PushPin sx={{ fontSize: "0.875rem" }} />
+              <PushPin sx={{ fontSize: "1rem" }} />
             </Box>
           )}
           <Friend
@@ -558,303 +752,676 @@ const PostWidget = ({
             subtitle={bio ? (bio.length > 100 ? `${bio.substring(0, 100)}...` : bio) : "No bio yet"}
             userPicturePath={postUserId === loggedInUserId ? loggedInUserPicturePath : userPicturePath}
             isAdmin={isAdmin}
-            size="55px"
+            size="60px"
             friendStatus={friendStatus}
             onFriendAction={handleFriendAction}
+            showAcceptReject={false}
           />
         </Box>
-        {/* Post Content - Show edit form when editing */}
-        {isEditingPost ? (
-          <Box sx={{ mt: "1rem" }}>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              placeholder="What's on your mind..."
-              value={editingPostText}
-              onChange={(e) => setEditingPostText(e.target.value)}
-              variant="outlined"
-              sx={{
-                mb: 2,
-                "& .MuiOutlinedInput-root": {
-                  fontSize: "1rem",
-                },
-              }}
-              disabled={isSubmittingPostEdit}
-            />
-            
-            {/* Media Preview for editing */}
-            {editingPostMediaPreview && (
-              <Box sx={{ mb: 2, position: "relative", maxWidth: "200px" }}>
-                {editingPostMediaFile?.type.startsWith('image/') ? (
-                  <img
-                    src={editingPostMediaPreview}
-                    alt="Preview"
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "150px",
-                      borderRadius: "8px",
-                      border: `1px solid ${palette.neutral.light}`
-                    }}
-                  />
-                ) : (
-                  <Box sx={{
-                    p: 1,
-                    bgcolor: palette.background.alt,
-                    borderRadius: 1,
-                    border: `1px solid ${palette.neutral.light}`,
-                    fontSize: "0.75rem",
-                    color: palette.neutral.main
-                  }}>
-                    📎 {editingPostMediaPreview}
-                  </Box>
-                )}
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    setEditingPostMediaFile(null);
-                    setEditingPostMediaPreview(null);
-                  }}
-                  sx={{
-                    position: "absolute",
-                    top: -8,
-                    right: -8,
-                    bgcolor: "rgba(0,0,0,0.6)",
-                    color: "white",
-                    "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
-                    minWidth: "32px",
-                    minHeight: "32px"
-                  }}
-                >
-                  <Close fontSize="small" />
-                </IconButton>
-              </Box>
-            )}
 
-            {/* Current media display */}
-            {mediaPath && !editingPostMediaFile && !removeExistingMedia && (
-              <Box sx={{ mb: 2, position: "relative" }}>
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
-                  Current media:
+        {isRepost && ancestorPost && (
+          <Box
+            sx={{
+              mt: 2,
+              borderRadius: 2,
+              border: `1px solid ${palette.neutral.light}`,
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? "rgba(255,255,255,0.04)"
+                  : "rgba(0,0,0,0.02)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            <Box sx={{ px: 2, pt: 2 }}>
+              <FlexBetween>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Repeat fontSize="small" sx={{ color: palette.primary.main }} />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Reposted from {ancestorName}
+                  </Typography>
+                </Box>
+                {ancestorPostId && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={handleViewOriginalPost}
+                  >
+                    View original
+                  </Button>
+                )}
+              </FlexBetween>
+              {repostComment && (
+                <Typography
+                  variant="body1"
+                  sx={{ mt: 1, color: palette.neutral.main, fontWeight: 500 }}
+                >
+                  {repostComment}
                 </Typography>
-                {renderMedia()}
-                <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
+              )}
+            </Box>
+            <Divider sx={{ mt: repostComment ? 2 : 1 }} />
+            <Box sx={{ p: 2, backgroundColor: theme.palette.background.paper }}>
+              <PostWidget
+                postId={ancestorPost._id}
+                postUserId={ancestorPost.userId?._id || ancestorPost.userId}
+                name={ancestorName}
+                description={ancestorPost.description}
+                location={ancestorPost.location}
+                bio={ancestorPost.userId?.bio}
+                picturePath={ancestorPost.picturePath}
+                userPicturePath={ancestorPost.userPicturePath || ancestorPost.userId?.picturePath || ""}
+                likes={ancestorPost.likes || {}}
+                reactions={ancestorPost.reactions || {}}
+                reactionCounts={ancestorPost.reactionCounts || {}}
+                userReaction={ancestorPost.userReaction}
+                comments={ancestorPost.comments || []}
+                mediaPath={ancestorPost.mediaPath}
+                mediaType={ancestorPost.mediaType}
+                mediaSize={ancestorPost.mediaSize}
+                mediaPaths={ancestorPost.mediaPaths || []}
+                mediaTypes={ancestorPost.mediaTypes || []}
+                mediaSizes={ancestorPost.mediaSizes || []}
+                mediaDurations={ancestorPost.mediaDurations || []}
+                mediaDuration={ancestorPost.mediaDuration}
+                isDetailView={false}
+                isAdmin={ancestorPost.userId?.isAdmin || false}
+                pinned={ancestorPost.pinned || false}
+                showAddFriend={false}
+                linkPreviews={ancestorPost.linkPreviews || []}
+                repostOf={ancestorPost.repostOf || null}
+                repostComment={ancestorPost.repostComment || ""}
+              />
+            </Box>
+          </Box>
+        )}
+
+        {/* Post Content - Show edit form when editing */}
+        {!isRepost && (
+          isEditingPost ? (
+            <Box sx={{ mt: "1.5rem" }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                placeholder="What's on your mind..."
+                value={editingPostText}
+                onChange={(e) => setEditingPostText(e.target.value)}
+                variant="outlined"
+                sx={{
+                  mb: 2,
+                  "& .MuiOutlinedInput-root": {
+                    fontSize: "1rem",
+                    borderRadius: '12px',
+                    backgroundColor: theme.palette.background.paper,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.primary.main,
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.primary.main,
+                      borderWidth: '2px',
+                    }
+                  },
+                }}
+                disabled={isSubmittingPostEdit}
+              />
+
+              {/* Media Preview for editing */}
+              {editingPostMediaPreview && (
+                <Box sx={{ mb: 2, position: "relative", maxWidth: "200px" }}>
+                  {editingPostMediaFile?.type?.startsWith('image/') ? (
+                    <img
+                      src={editingPostMediaPreview}
+                      alt="Preview"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: "150px",
+                        borderRadius: "8px",
+                        border: `1px solid ${palette.neutral.light}`
+                      }}
+                    />
+                  ) : (
+                    <Box sx={{
+                      p: 1,
+                      bgcolor: palette.background.alt,
+                      borderRadius: 1,
+                      border: `1px solid ${palette.neutral.light}`,
+                      fontSize: "0.75rem",
+                      color: palette.neutral.main
+                    }}>
+                      📎 {editingPostMediaPreview}
+                    </Box>
+                  )}
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setEditingPostMediaFile(null);
+                      setEditingPostMediaPreview(null);
+                    }}
+                    sx={{
+                      position: "absolute",
+                      top: -8,
+                      right: -8,
+                      bgcolor: "rgba(0,0,0,0.6)",
+                      color: "white",
+                      "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
+                      minWidth: "32px",
+                      minHeight: "32px"
+                    }}
+                  >
+                    <Close fontSize="small" />
+                  </IconButton>
+                </Box>
+              )}
+
+              {/* Current media display */}
+              {(mediaPaths && mediaPaths.length > 0) || mediaPath ? (
+                <Box sx={{ mb: 2, position: "relative" }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
+                    Current media:
+                  </Typography>
+
+                  {mediaPaths && mediaPaths.length > 0 ? (
+                    mediaPaths.length === 1 ? (
+                      <img
+                        width="100%"
+                        height="auto"
+                        alt="current post media"
+                        src={`${API_BASE_URL}/assets/${mediaPaths[0]}`}
+                        style={{
+                          borderRadius: "0.75rem",
+                          marginBottom: "8px"
+                        }}
+                      />
+                    ) : (
+                      <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", mb: 1 }}>
+                        {mediaPaths.map((path, index) => (
+                          <Box
+                            key={index}
+                            sx={{
+                              position: "relative",
+                              borderRadius: "0.75rem",
+                              overflow: "hidden",
+                              aspectRatio: "1",
+                            }}
+                          >
+                            <img
+                              src={`${API_BASE_URL}/assets/${path}`}
+                              alt={`current media ${index + 1}`}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          </Box>
+                        ))}
+                      </Box>
+                    )
+                  ) : (
+                    mediaPath && (
+                      <img
+                        width="100%"
+                        height="auto"
+                        alt="current post media"
+                        src={`${API_BASE_URL}/assets/${mediaPath}`}
+                        style={{
+                          borderRadius: "0.75rem",
+                          marginBottom: "8px"
+                        }}
+                      />
+                    )
+                  )}
+
+                  <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="error"
+                      onClick={() => {
+                        setRemoveExistingMedia(true);
+                      }}
+                      disabled={isSubmittingPostEdit}
+                    >
+                      Remove All Media
+                    </Button>
+                  </Box>
+                </Box>
+              ) : null}
+
+              {removeExistingMedia && !editingPostMediaFile && (
+                <Box sx={{ mb: 2, p: 2, bgcolor: `${palette.error.light}20`, borderRadius: "8px", border: `1px solid ${palette.error.light}` }}>
+                  <Typography variant="body2" color="error" sx={{ fontWeight: 500 }}>
+                    Media will be removed when you save changes
+                  </Typography>
+                </Box>
+              )}
+
+              <Box sx={{ display: "flex", gap: "0.5rem", alignItems: "center", mb: 2 }}>
+                <input
+                  type="file"
+                  id={`edit-media-input-${postId}`}
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length > 0) {
+                      const validFiles = files.filter((file) => {
+                        if (file.size > 10 * 1024 * 1024) {
+                          alert(`File "${file.name}" is too large. Maximum size is 10MB per file.`);
+                          return false;
+                        }
+                        return true;
+                      });
+
+                      if (validFiles.length > 0) {
+                        const limitedFiles = validFiles.slice(0, 10);
+                        if (validFiles.length > 10) {
+                          alert("Maximum 10 images allowed per post. Only the first 10 files will be used.");
+                        }
+
+                        setEditingPostMediaFile(limitedFiles);
+                        setEditingPostMediaPreview(`Selected ${limitedFiles.length} image${limitedFiles.length > 1 ? 's' : ''}`);
+                      }
+                    }
+                  }}
+                  style={{ display: "none" }}
+                />
+                <label htmlFor={`edit-media-input-${postId}`}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    component="span"
+                    startIcon={<AttachFile />}
+                    disabled={isSubmittingPostEdit}
+                  >
+                    Replace media
+                  </Button>
+                </label>
+              </Box>
+
+              {!removeExistingMedia && (mediaPaths?.length > 0 || mediaPath) && (
+                <Box sx={{ mb: 2 }}>
                   <Button
                     variant="outlined"
                     size="small"
                     color="error"
-                    onClick={() => {
-                      // Immediately hide the current media and set flag for saving
-                      setRemoveExistingMedia(true);
-                      setEditingPostMediaFile(null);
-                      setEditingPostMediaPreview(null);
-                    }}
+                    onClick={() => setRemoveExistingMedia(true)}
                     disabled={isSubmittingPostEdit}
                   >
-                    Remove Media
+                    Remove existing media
                   </Button>
                 </Box>
-              </Box>
-            )}
+              )}
 
-            {/* Show message when media will be removed */}
-            {removeExistingMedia && !editingPostMediaFile && (
-              <Box sx={{ mb: 2, p: 2, bgcolor: palette.error.light + "20", borderRadius: "8px", border: `1px solid ${palette.error.light}` }}>
-                <Typography variant="body2" color="error" sx={{ fontWeight: 500 }}>
-                  Media will be removed when you save changes
-                </Typography>
-              </Box>
-            )}
-
-            {/* Media upload for editing */}
-            <Box sx={{ display: "flex", gap: "0.5rem", alignItems: "center", mb: 2 }}>
-              <input
-                type="file"
-                id={`edit-media-input-${postId}`}
-                accept="image/*,audio/*,video/webm,image/gif"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    // Validate file size (10MB limit)
-                    if (file.size > 10 * 1024 * 1024) {
-                      alert("File size must be less than 10MB");
-                      return;
-                    }
-
-                    setEditingPostMediaFile(file);
-
-                    // Create preview
-                    if (file.type.startsWith('image/')) {
-                      const reader = new FileReader();
-                      reader.onload = (e) => setEditingPostMediaPreview(e.target.result);
-                      reader.readAsDataURL(file);
-                    } else {
-                      setEditingPostMediaPreview(file.name);
-                    }
-                  }
-                }}
-                style={{ display: "none" }}
-              />
-              <label htmlFor={`edit-media-input-${postId}`}>
+              <Box sx={{ display: "flex", gap: 2 }}>
                 <Button
-                  variant="outlined"
-                  component="span"
-                  size="small"
-                  startIcon={<AttachFile />}
+                  variant="contained"
+                  onClick={submitEditedPost}
                   disabled={isSubmittingPostEdit}
+                  startIcon={isSubmittingPostEdit ? <CircularProgress size={16} color="inherit" /> : <Check />}
                 >
-                  {editingPostMediaFile ? "Change Media" : "Add Media"}
+                  {isSubmittingPostEdit ? "Saving..." : "Save changes"}
                 </Button>
-              </label>
-              
-              {editingPostMediaFile && (
                 <Button
                   variant="outlined"
-                  size="small"
-                  color="error"
-                  onClick={() => {
-                    setEditingPostMediaFile(null);
-                    setEditingPostMediaPreview(null);
+                  onClick={cancelEditingPost}
+                  disabled={isSubmittingPostEdit}
+                  startIcon={<Clear />}
+                >
+                  Cancel
+                </Button>
+              </Box>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                '&:hover': {
+                  transform: 'scale(1.01)',
+                  transition: 'transform 0.2s ease'
+                }
+              }}
+            >
+              {description && (
+                <Box
+                  sx={{
+                    mt: "1.5rem",
+                    '& p': {
+                      color: main,
+                      fontSize: '1.05rem',
+                      lineHeight: 1.6,
+                      fontWeight: 400,
+                      marginBottom: '0.75rem',
+                    },
+                    '& p:last-of-type': { marginBottom: 0 },
                   }}
-                  disabled={isSubmittingPostEdit}
                 >
-                  Remove Media
-                </Button>
+                  <ReactMarkdown
+                    components={{
+                      a: ({ node, ...props }) => <MarkdownLink {...props} />,
+                    }}
+                  >
+                    {description}
+                  </ReactMarkdown>
+                </Box>
+              )}
+
+              {linkPreviews && linkPreviews.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  {linkPreviews.map((preview, index) => (
+                    <LinkPreview key={index} preview={preview} />
+                  ))}
+                </Box>
+              )}
+
+              {renderMedia()}
+
+              {mediaType === 'audio' && !mediaPath && mediaDurations && mediaDurations.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <AudioWaveform
+                    audioSrc={`${API_BASE_URL}/assets/${mediaPaths?.[0]}`}
+                    audioSize={mediaSizes?.[0]}
+                    audioDuration={mediaDurations?.[0]}
+                    showControls={true}
+                    showWaveform={true}
+                    height={60}
+                    color={primary}
+                  />
+                </Box>
               )}
             </Box>
-
-            {/* Edit action buttons */}
-            <Box sx={{ display: "flex", gap: "0.5rem" }}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={submitEditedPost}
-                disabled={(!editingPostText.trim() && !editingPostMediaFile && !mediaPath) || isSubmittingPostEdit}
-                startIcon={isSubmittingPostEdit ? undefined : <Check />}
-              >
-                {isSubmittingPostEdit ? "Saving..." : "Save Changes"}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={cancelEditingPost}
-                disabled={isSubmittingPostEdit}
-                startIcon={<Clear />}
-              >
-                Cancel
-              </Button>
-            </Box>
-          </Box>
-        ) : (
-          <Box
-            onClick={handlePostClick}
-            sx={{
-              cursor: "pointer",
-              "&:hover": {
-                opacity: 0.8,
-              },
-              transition: "opacity 0.2s ease",
-            }}
-          >
-            <Typography color={main} sx={{ mt: "1rem" }}>
-              <ReactMarkdown components={{ a: MarkdownLink }}>{description}</ReactMarkdown>
-            </Typography>
-            {renderMedia()}
-          </Box>
+          )
         )}
-        <FlexBetween mt="0.25rem">
+        
+        {/* Enhanced Like and Comment Buttons Row */}
+        <FlexBetween 
+          mt="1rem"
+          sx={{
+            padding: '0.6rem 0.75rem',
+            borderRadius: '12px',
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? 'rgba(255,255,255,0.05)' 
+              : 'rgba(0,0,0,0.03)',
+            border: `1px solid ${theme.palette.mode === 'dark' 
+              ? 'rgba(255,255,255,0.1)' 
+              : 'rgba(0,0,0,0.08)'}`
+          }}
+        >
           <FlexBetween gap="1rem">
-            <FlexBetween gap="0.3rem">
-              <IconButton 
-                onClick={patchLike}
-                sx={{ 
-                  padding: "0.75rem",
-                  "&:hover": { backgroundColor: "rgba(0,0,0,0.04)" }
-                }}
-              >
-                {isLiked ? (
-                  <FavoriteOutlined sx={{ color: primary, fontSize: "1.5rem" }} />
-                ) : (
-                  <FavoriteBorderOutlined sx={{ fontSize: "1.5rem" }} />
-                )}
-              </IconButton>
-              <Typography sx={{ fontSize: "1rem", fontWeight: 500 }}>{likeCount}</Typography>
-            </FlexBetween>
+            <ReactionPicker
+              postId={postId}
+              currentReaction={userReaction}
+              reactionCounts={reactionCounts || {}}
+              onReactionChange={handleReactionChange}
+              density="compact"
+            />
 
-            <FlexBetween gap="0.3rem">
+            <FlexBetween 
+              gap="0.35rem"
+              sx={{
+                padding: '0.4rem 0.75rem',
+                borderRadius: '18px',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer',
+                '&:hover': {
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? 'rgba(255,255,255,0.1)' 
+                    : 'rgba(0,0,0,0.05)',
+                  transform: 'scale(1.05)'
+                }
+              }}
+              onClick={() => setIsComments(!isComments)}
+            >
               <IconButton 
-                onClick={() => setIsComments(!isComments)}
                 sx={{ 
-                  padding: "0.75rem",
-                  "&:hover": { backgroundColor: "rgba(0,0,0,0.04)" }
+                  padding: "0.4rem",
+                  color: isComments ? primary : palette.neutral.main,
+                  '&:hover': { 
+                    backgroundColor: 'transparent',
+                    transform: 'scale(1.1)'
+                  }
                 }}
               >
-                <ChatBubbleOutlineOutlined sx={{ fontSize: "1.5rem" }} />
+                <ChatBubbleOutlineOutlined sx={{ fontSize: "1.15rem" }} />
               </IconButton>
-              <Typography sx={{ fontSize: "1rem", fontWeight: 500 }}>{comments.length}</Typography>
+              <Typography 
+                sx={{ 
+                  fontSize: "0.85rem", 
+                  fontWeight: isComments ? 600 : 500,
+                  color: isComments ? primary : palette.neutral.main
+                }}
+              >
+                {comments.length}
+              </Typography>
             </FlexBetween>
           </FlexBetween>
 
-          <Box>
+          <Box sx={{ display: 'flex', gap: 0.35 }}>
             <IconButton 
               onClick={() => setIsShareDialogOpen(true)}
               sx={{ 
-                padding: "0.75rem",
-                "&:hover": { backgroundColor: "rgba(0,0,0,0.04)" }
+                padding: "0.6rem",
+                borderRadius: '12px',
+                transition: 'all 0.2s ease',
+                '&:hover': { 
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? 'rgba(255,255,255,0.1)' 
+                    : 'rgba(0,0,0,0.05)',
+                  transform: 'scale(1.1)'
+                }
               }}
             >
-              <ShareOutlined sx={{ fontSize: "1.5rem" }} />
+              <ShareOutlined sx={{ fontSize: "1.15rem" }} />
             </IconButton>
             
             {/* Edit/Delete buttons - only show for post owner */}
-            {loggedInUserId === postUserId && !isEditingPost && (
-              <>
+            {isOwnPost && !isEditingPost ? (
+              isRepost ? (
+                <Tooltip title="Undo repost" arrow>
+                  <span>
+                    <IconButton
+                      onClick={handleUndoRepost}
+                      sx={{
+                        ml: 1,
+                        padding: "0.75rem",
+                        color: palette.warning.main,
+                        "&:hover": {
+                          backgroundColor: "rgba(0,0,0,0.04)",
+                          color: palette.warning.dark,
+                        },
+                      }}
+                      disabled={!canUndoRepost || isReposting}
+                    >
+                      <Undo sx={{ fontSize: "1.5rem" }} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              ) : (
+                <>
+                  <Tooltip title="Edit post" arrow>
+                    <IconButton 
+                      onClick={startEditingPost}
+                      sx={{ 
+                        ml: 1, 
+                        padding: "0.75rem",
+                        "&:hover": { backgroundColor: "rgba(0,0,0,0.04)" }
+                      }}
+                    >
+                      <Edit sx={{ fontSize: "1.5rem" }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete post" arrow>
+                    <IconButton 
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteDialogOpen(true);
+                      }}
+                      sx={{ 
+                        ml: 1, 
+                        padding: "0.75rem",
+                        color: palette.error.main,
+                        "&:hover": { 
+                          backgroundColor: "rgba(0,0,0,0.04)",
+                          color: palette.error.dark
+                        }
+                      }}
+                    >
+                      <Delete sx={{ fontSize: "1.5rem" }} />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )
+            ) : (
+              !isEditingPost && (
+                <Tooltip title="Repost" arrow>
+                  <span>
+                    <IconButton
+                      onClick={handleOpenRepostDialog}
+                      sx={{
+                        ml: 1,
+                        padding: "0.75rem",
+                        color: palette.primary.main,
+                        "&:hover": {
+                          backgroundColor: "rgba(0,0,0,0.04)",
+                          color: palette.primary.dark,
+                        },
+                      }}
+                      disabled={isReposting}
+                    >
+                      <Repeat sx={{ fontSize: "1.5rem" }} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              )
+            )}
+            
+            {loggedInUserIsAdmin && (
+              <Tooltip title={pinned ? "Unpin" : "Pin"} arrow>
                 <IconButton 
-                  onClick={startEditingPost}
+                  onClick={handlePin} 
                   sx={{ 
                     ml: 1, 
                     padding: "0.75rem",
                     "&:hover": { backgroundColor: "rgba(0,0,0,0.04)" }
                   }}
-                  title="Edit post"
                 >
-                  <Edit sx={{ fontSize: "1.5rem" }} />
+                  {pinned ? (
+                    <PushPin sx={{ color: primary, fontSize: "1.5rem" }} />
+                  ) : (
+                    <PushPinOutlined sx={{ fontSize: "1.5rem" }} />
+                  )}
                 </IconButton>
-                <IconButton 
-                  onClick={deletePost}
-                  sx={{ 
-                    ml: 1, 
-                    padding: "0.75rem",
-                    color: palette.error.main,
-                    "&:hover": { 
-                      backgroundColor: "rgba(0,0,0,0.04)",
-                      color: palette.error.dark
-                    }
-                  }}
-                  title="Delete post"
-                >
-                  <Delete sx={{ fontSize: "1.5rem" }} />
-                </IconButton>
-              </>
-            )}
-            
-            {loggedInUserIsAdmin && (
-              <IconButton 
-                onClick={handlePin} 
-                sx={{ 
-                  ml: 1, 
-                  padding: "0.75rem",
-                  "&:hover": { backgroundColor: "rgba(0,0,0,0.04)" }
-                }}
-              >
-                {pinned ? (
-                  <PushPin sx={{ color: primary, fontSize: "1.5rem" }} />
-                ) : (
-                  <PushPinOutlined sx={{ fontSize: "1.5rem" }} />
-                )}
-              </IconButton>
+              </Tooltip>
             )}
           </Box>
         </FlexBetween>
+
+        {/* Enhanced Reaction Count Summary */}
+        {reactionCounts && Object.keys(reactionCounts).length > 0 && (
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              gap: 0.5, 
+              mt: 1.5, 
+              flexWrap: 'wrap', 
+              pl: 1,
+              animation: 'fadeIn 0.3s ease-in-out',
+              '@keyframes fadeIn': {
+                from: { opacity: 0, transform: 'translateY(10px)' },
+                to: { opacity: 1, transform: 'translateY(0)' }
+              }
+            }}
+          >
+            {reactionCounts.like > 0 && (
+              <Chip
+                icon={<FavoriteOutlined sx={{ fontSize: '0.9rem', color: '#1877F2' }} />}
+                label={reactionCounts.like}
+                size="small"
+                sx={{ 
+                  height: '24px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(24, 119, 242, 0.1)',
+                  color: '#1877F2',
+                  '& .MuiChip-label': { px: 0.75 }
+                }}
+              />
+            )}
+            {reactionCounts.love > 0 && (
+              <Chip
+                label={`❤️ ${reactionCounts.love}`}
+                size="small"
+                sx={{ 
+                  height: '24px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(243, 62, 88, 0.1)',
+                  color: '#f33e58',
+                  '& .MuiChip-label': { px: 0.5 }
+                }}
+              />
+            )}
+            {reactionCounts.laugh > 0 && (
+              <Chip
+                label={`😂 ${reactionCounts.laugh}`}
+                size="small"
+                sx={{ 
+                  height: '24px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(247, 185, 36, 0.1)',
+                  color: '#f7b924',
+                  '& .MuiChip-label': { px: 0.5 }
+                }}
+              />
+            )}
+            {reactionCounts.wow > 0 && (
+              <Chip
+                label={`😮 ${reactionCounts.wow}`}
+                size="small"
+                sx={{ 
+                  height: '24px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(247, 185, 36, 0.1)',
+                  color: '#f7b924',
+                  '& .MuiChip-label': { px: 0.5 }
+                }}
+              />
+            )}
+            {reactionCounts.sad > 0 && (
+              <Chip
+                label={`😢 ${reactionCounts.sad}`}
+                size="small"
+                sx={{ 
+                  height: '24px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(247, 185, 36, 0.1)',
+                  color: '#f7b924',
+                  '& .MuiChip-label': { px: 0.5 }
+                }}
+              />
+            )}
+            {reactionCounts.angry > 0 && (
+              <Chip
+                label={`😠 ${reactionCounts.angry}`}
+                size="small"
+                sx={{ 
+                  height: '24px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(233, 67, 53, 0.1)',
+                  color: '#e94335',
+                  '& .MuiChip-label': { px: 0.5 }
+                }}
+              />
+            )}
+          </Box>
+        )}
+
         {isComments && (
           <Box mt="0.5rem">
             {comments.map((comment, i) => {
@@ -879,6 +1446,7 @@ const PostWidget = ({
                           image={commentUserId === loggedInUserId ? loggedInUserPicturePath : commentUserPicturePath}
                           size="32px"
                           name={commentUserName}
+                          key={`comment-user-${commentUserId}-${profilePictureKey}`}
                         />
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                           <Typography sx={{ color: primary, fontWeight: "bold", fontSize: "0.875rem" }}>
@@ -1198,13 +1766,110 @@ const PostWidget = ({
         )}
       </WidgetWrapper>
 
-      {/* Share Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setDeleteError(null);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>Delete this post?</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ mb: 2 }} color="text.secondary">
+            This action can’t be undone. The post and its comments will be removed for everyone.
+          </Typography>
+          {deleteError && (
+            <Box
+              sx={{
+                mt: 1,
+                p: 1,
+                borderRadius: 1,
+                backgroundColor: theme.palette.error.light + '20',
+              }}
+            >
+              <Typography variant="body2" color="error.main">
+                {deleteError}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => {
+            setDeleteDialogOpen(false);
+            setDeleteError(null);
+          }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={deletePost}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <ShareDialog
         open={isShareDialogOpen}
         onClose={() => setIsShareDialogOpen(false)}
         postId={postId}
         postDescription={description}
       />
+
+      <Dialog
+        open={repostDialogOpen}
+        onClose={() => {
+          if (isReposting) return;
+          setRepostDialogOpen(false);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Share this post on your profile?</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Add an optional comment before reposting.
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            minRows={3}
+            placeholder="Add your thoughts..."
+            value={repostCommentInput}
+            onChange={(e) => setRepostCommentInput(e.target.value)}
+            disabled={isReposting}
+          />
+          {repostError && (
+            <Box
+              sx={{
+                mt: 2,
+                p: 1.5,
+                borderRadius: 1,
+                backgroundColor: theme.palette.error.light + '20',
+              }}
+            >
+              <Typography variant="body2" color="error.main">
+                {repostError}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRepostDialogOpen(false)} disabled={isReposting}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleRepost}
+            disabled={isReposting}
+          >
+            {isReposting ? <CircularProgress size={20} color="inherit" /> : "Repost"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
