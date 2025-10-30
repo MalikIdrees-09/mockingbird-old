@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Box, Avatar } from "@mui/material";
+import { Box } from "@mui/material";
 import { API_BASE_URL } from "../utils/api";
 
 const UserImage = ({ image, size = "60px", name = "" }) => {
   const [profilePictureKey, setProfilePictureKey] = useState(Date.now());
+  const [loadError, setLoadError] = useState(false);
 
   // Listen for profile picture updates
   useEffect(() => {
@@ -18,6 +19,10 @@ const UserImage = ({ image, size = "60px", name = "" }) => {
     };
   }, []);
 
+  useEffect(() => {
+    setLoadError(false);
+  }, [image, profilePictureKey]);
+
   let imageUrl = null;
   if (image) {
     const isAbsolute = /^https?:\/\//i.test(image);
@@ -30,67 +35,52 @@ const UserImage = ({ image, size = "60px", name = "" }) => {
       imageUrl = `${API_BASE_URL}/assets/${image}?v=${profilePictureKey}`;
     }
   }
-  
-  // If no image, show initials
-  if (!imageUrl) {
-    const initials = name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-      
-    return (
-      <Avatar
-        sx={{
-          width: size,
-          height: size,
-          bgcolor: 'primary.main',
-          fontSize: `calc(${size} * 0.4)`,
-          fontWeight: 'bold'
-        }}
-      >
-        {initials || '?'}
-      </Avatar>
-    );
-  }
+
+  const resolvedLabel = imageUrl || image || "(no image)";
 
   return (
-    <Box width={size} height={size}>
-      <img
-        style={{ objectFit: "cover", borderRadius: "50%" }}
-        width={size}
-        height={size}
-        alt="user"
-        src={imageUrl}
-        onError={(e) => {
-          // If image fails to load, show initials
-          const initials = name
-            .split(' ')
-            .map(word => word[0])
-            .join('')
-            .toUpperCase()
-            .slice(0, 2);
-            
-          e.target.style.display = 'none';
-          e.target.parentNode.innerHTML = `
-            <div style="
-              width: ${size}; 
-              height: ${size}; 
-              border-radius: 50%; 
-              background-color: #1976d2; 
-              display: flex; 
-              align-items: center; 
-              justify-content: center; 
-              color: white; 
-              font-weight: bold; 
-              font-size: calc(${size} * 0.4);
-            ">
-              ${initials || '?'}
-            </div>
-          `;
-        }}
-      />
+    <Box
+      width={size}
+      height={size}
+      sx={{
+        borderRadius: "50%",
+        overflow: "hidden",
+        position: "relative",
+        backgroundColor: "#e0e0e0",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      title={`${loadError ? "Failed to load" : "Resolved URL"}: ${resolvedLabel}`}
+    >
+      {!loadError && imageUrl ? (
+        <img
+          style={{ objectFit: "cover", width: "100%", height: "100%" }}
+          alt={name || "user"}
+          src={imageUrl}
+          onError={(event) => {
+            setLoadError(true);
+            console.warn("Failed to load profile image", {
+              name,
+              attemptedSrc: event?.target?.src,
+              rawValue: image,
+            });
+          }}
+        />
+      ) : (
+        <span
+          style={{
+            fontSize: "0.55rem",
+            color: "#555",
+            padding: "0 4px",
+            textAlign: "center",
+            wordBreak: "break-all",
+            lineHeight: 1.2,
+          }}
+        >
+          {loadError ? "Image load failed" : "No image URL"}
+        </span>
+      )}
     </Box>
   );
 };
