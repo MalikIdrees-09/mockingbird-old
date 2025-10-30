@@ -61,7 +61,7 @@ const ProfanityManagement = ({ userId }) => {
   const getProfanityLogs = useCallback(async () => {
     try {
       const response = await fetch(
-        `https://backend-server-453975176199.us-central1.run.app/profanity/logs?page=${page}`,
+        `https://mockingbird-backend-453975176199.us-central1.run.app/profanity/logs?page=${page}`,
         {
           method: "GET",
           headers: {
@@ -91,7 +91,7 @@ const ProfanityManagement = ({ userId }) => {
   const getProfanityStats = useCallback(async () => {
     try {
       const response = await fetch(
-        `https://backend-server-453975176199.us-central1.run.app/profanity/stats`,
+        `https://mockingbird-backend-453975176199.us-central1.run.app/profanity/stats`,
         {
           method: "GET",
           headers: {
@@ -118,7 +118,7 @@ const ProfanityManagement = ({ userId }) => {
   const handleReview = async () => {
     try {
       const response = await fetch(
-        `https://backend-server-453975176199.us-central1.run.app/profanity/logs/${selectedLog._id}/review`,
+        `https://mockingbird-backend-453975176199.us-central1.run.app/profanity/logs/${selectedLog._id}/review`,
         {
           method: "PATCH",
           headers: {
@@ -155,7 +155,7 @@ const ProfanityManagement = ({ userId }) => {
   const handleTakeAction = async () => {
     try {
       const response = await fetch(
-        `https://backend-server-453975176199.us-central1.run.app/profanity/logs/${selectedLog._id}/action`,
+        `https://mockingbird-backend-453975176199.us-central1.run.app/profanity/logs/${selectedLog._id}/action`,
         {
           method: "PATCH",
           headers: {

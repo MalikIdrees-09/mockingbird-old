@@ -165,7 +165,7 @@ const Settings = () => {
     try {
       console.log("📡 Making API call to update profile...");
       const response = await fetch(
-        `https://backend-server-453975176199.us-central1.run.app/users/${user._id}`,
+        `https://mockingbird-backend-453975176199.us-central1.run.app/users/${user._id}`,
         {
           method: "PATCH",
           headers: {
@@ -267,7 +267,7 @@ const Settings = () => {
 
     try {
       console.log("📡 Making API call to change password...");
-      const response = await fetch("https://backend-server-453975176199.us-central1.run.app/auth/change-password", {
+      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/auth/change-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -346,7 +346,7 @@ const Settings = () => {
 
     try {
       console.log("🔢 Verifying email change OTP...");
-      const response = await fetch("https://backend-server-453975176199.us-central1.run.app/auth/verify-email", {
+      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/auth/verify-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -441,7 +441,7 @@ const Settings = () => {
 
     try {
       console.log("📡 Making API call to change email...");
-      const response = await fetch("https://backend-server-453975176199.us-central1.run.app/auth/change-email", {
+      const response = await fetch("https://mockingbird-backend-453975176199.us-central1.run.app/auth/change-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -573,7 +573,7 @@ const Settings = () => {
                   <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                     <Avatar
                       src={
-                        user.picturePath ? `https://backend-server-453975176199.us-central1.run.app/assets/${user.picturePath}?v=${profilePictureKey}` : undefined
+                        user.picturePath ? `https://mockingbird-backend-453975176199.us-central1.run.app/assets/${user.picturePath}?v=${profilePictureKey}` : undefined
                       }
                       sx={{
                         width: 80,
@@ -692,7 +692,7 @@ const Settings = () => {
                       <CardContent sx={{ textAlign: "center", pb: 3 }}>
                         <Box sx={{ position: "relative", display: "inline-block", mb: 2 }}>
                           <Avatar
-                            src={user.picturePath ? `https://backend-server-453975176199.us-central1.run.app/assets/${user.picturePath}?v=${profilePictureKey}` : undefined}
+                            src={user.picturePath ? `https://mockingbird-backend-453975176199.us-central1.run.app/assets/${user.picturePath}?v=${profilePictureKey}` : undefined}
                             sx={{
                               width: 150,
                               height: 150,

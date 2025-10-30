@@ -39,7 +39,7 @@ const AdminDashboard = ({ userId, activeTab, setActiveTab, showStats = false }) 
         throw new Error("No authentication token available");
       }
       
-      const response = await fetch(`https://backend-server-453975176199.us-central1.run.app/admin/dashboard`, {
+      const response = await fetch(`https://mockingbird-backend-453975176199.us-central1.run.app/admin/dashboard`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
