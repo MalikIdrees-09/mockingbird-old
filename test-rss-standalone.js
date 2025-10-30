@@ -42,8 +42,8 @@ async function testRSSStandalone() {
     console.log('\n💡 To test with server:');
     console.log('1. Kill existing server processes');
     console.log('2. Start server: npm run dev');
-    console.log('3. Check status: curl https://mockingbird-server-453975176199.asia-south1.run.app//api/rss/status');
-    console.log('4. Manual sync: curl -X POST https://mockingbird-server-453975176199.asia-south1.run.app//api/rss/sync');
+    console.log('3. Check status: curl https://backend-server-453975176199.us-central1.run.app/api/rss/status');
+    console.log('4. Manual sync: curl -X POST https://backend-server-453975176199.us-central1.run.app/api/rss/sync');
     console.log('5. View posts in the feed!');
 
   } catch (error) {

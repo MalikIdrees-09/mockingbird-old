@@ -104,6 +104,7 @@ export default function ChatWindow({ conversationId, recipientId }) {
     if (res.ok) {
       const current = [...(messages || [])].map(m => m._id === messageId ? { ...m, isDeleted: true, content: "", media: [], mediaTypes: [] } : m);
       dispatch(setMessagesForConversation({ conversationId, messages: current }));
+      if (socket) socket.emit('message_deleted', { toUserId: recipientId, conversationId, messageId });
     }
   };
 

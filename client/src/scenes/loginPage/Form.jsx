@@ -96,7 +96,7 @@ const Form = () => {
 
       console.log("Sending registration request...");
       const savedUserResponse = await fetch(
-        "https://mockingbird-server-453975176199.asia-south1.run.app//auth/register",
+        "https://backend-server-453975176199.us-central1.run.app/auth/register",
         {
           method: "POST",
           body: formData,
@@ -129,7 +129,7 @@ const Form = () => {
   const login = async (values, onSubmitProps) => {
     try {
       console.log("Attempting login with:", values);
-      const response = await fetch("https://mockingbird-server-453975176199.asia-south1.run.app//auth/login", {
+      const response = await fetch("https://backend-server-453975176199.us-central1.run.app/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
@@ -178,7 +178,7 @@ const Form = () => {
     setResetLoading(true);
 
     try {
-      const response = await fetch("https://mockingbird-server-453975176199.asia-south1.run.app//auth/request-password-reset", {
+      const response = await fetch("https://backend-server-453975176199.us-central1.run.app/auth/request-password-reset", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

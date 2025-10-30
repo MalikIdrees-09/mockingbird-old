@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { useDispatch, useSelector } from "react-redux";
-import { addMessageToConversation, setTypingForConversation } from "../../state";
+import { addMessageToConversation, setTypingForConversation, setMessagesForConversation } from "../../state";
 import { API_BASE_URL } from "../../utils/api";
 
 const SocketContext = createContext(null);
@@ -12,6 +12,7 @@ export default function SocketProvider({ children }) {
   const dispatch = useDispatch();
   const socketRef = useRef(null);
   const [socketInstance, setSocketInstance] = useState(null);
+  const messagesByConversation = useSelector((s) => s.messagesByConversation);
 
   useEffect(() => {
     if (!token) return;
@@ -31,6 +32,14 @@ export default function SocketProvider({ children }) {
 
     socket.on("read_receipt", ({ conversationId, messageIds }) => {
       // Could mark messages as read by ids if needed
+    });
+
+    socket.on("message_deleted", ({ conversationId, messageId }) => {
+      // Update the conversation messages to mark as deleted
+      const current = (messagesByConversation[conversationId] || []).map(m => 
+        m._id === messageId ? { ...m, isDeleted: true, content: "", media: [], mediaTypes: [] } : m
+      );
+      dispatch(setMessagesForConversation({ conversationId, messages: current }));
     });
 
     socketRef.current = socket;

@@ -67,9 +67,9 @@ Each RSS article becomes a post with:
 ## Testing
 1. **Install Dependencies**: `npm install` in server directory
 2. **Start Server**: `npm run dev`
-3. **Check Status**: Visit `https://mockingbird-server-453975176199.asia-south1.run.app//api/rss/status`
-4. **Test Feed**: Visit `https://mockingbird-server-453975176199.asia-south1.run.app//api/rss/test`
-5. **Manual Sync**: `POST https://mockingbird-server-453975176199.asia-south1.run.app//api/rss/sync`
+3. **Check Status**: Visit `https://backend-server-453975176199.us-central1.run.app/api/rss/status`
+4. **Test Feed**: Visit `https://backend-server-453975176199.us-central1.run.app/api/rss/test`
+5. **Manual Sync**: `POST https://backend-server-453975176199.us-central1.run.app/api/rss/sync`
 
 ## Monitoring
 The system provides comprehensive logging:

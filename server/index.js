@@ -268,3 +268,6 @@ mongoose
     console.log('⏰ Keep-alive cron job scheduled to run every 10 minutes');
   })
   .catch((error) => console.log(`${error} did not connect`));
+
+// Export io instance for use in controllers
+export { io as ioInstance, userIdToSockets };
