@@ -25,8 +25,8 @@ const allowedTypes = [
   'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
   // audio
   'audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/webm',
-  // video (small clips)
-  'video/webm', 'video/mp4'
+  // video
+  'video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'video/ogg'
 ];
 
 const fileFilter = (req, file, cb) => {
@@ -34,7 +34,7 @@ const fileFilter = (req, file, cb) => {
   else cb(new Error(`Unsupported file type: ${file.mimetype}`), false);
 };
 
-const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({ storage, fileFilter, limits: { fileSize: 200 * 1024 * 1024, files: 5 } });
 
 router.get('/conversations', verifyToken, listConversations);
 router.post('/conversations', verifyToken, createConversation);

@@ -22,7 +22,7 @@ const postSchema = mongoose.Schema(
     mediaPath: String, // Path to the media file (legacy single media)
     mediaType: {
       type: String,
-      enum: ['image', 'audio', 'clip', null],
+      enum: ['image', 'audio', 'clip', 'video', null],
       default: null,
     },
     mediaDuration: Number, // Duration in seconds for video/audio
@@ -69,7 +69,7 @@ const postSchema = mongoose.Schema(
         mediaPath: String,
         mediaType: {
           type: String,
-          enum: ['image', 'audio', 'clip', null],
+          enum: ['image', 'audio', 'clip', 'video', null],
           default: null,
         },
         mediaSize: Number,

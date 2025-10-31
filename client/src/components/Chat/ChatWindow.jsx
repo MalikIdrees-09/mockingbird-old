@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Box, IconButton, TextField, Typography, List, ListItem, ListItemText, Divider, Chip, Avatar, Menu, MenuItem, useTheme, useMediaQuery, alpha } from "@mui/material";
+import { Box, IconButton, TextField, Typography, List, ListItem, ListItemText, Divider, Chip, Avatar, Menu, MenuItem, useTheme, useMediaQuery, alpha, Backdrop, CircularProgress } from "@mui/material";
 import { Send, AttachFile, MoreVert, Mic, Stop } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import { addMessageToConversation, setMessagesForConversation } from "../../state";
@@ -27,6 +27,7 @@ export default function ChatWindow({ conversationId, recipientId }) {
   const [recordSeconds, setRecordSeconds] = useState(0);
   const mediaRecorderRef = useRef(null);
   const recordTimerRef = useRef(null);
+  const [isSending, setIsSending] = useState(false);
   const uiTheme = useSelector(s => s.uiTheme);
   const isDarkMode = theme.palette.mode === 'dark';
   const headerBg = uiTheme?.backgroundType
@@ -58,22 +59,31 @@ export default function ChatWindow({ conversationId, recipientId }) {
 
   const onSend = async () => {
     if (!text.trim() && files.length === 0) return;
+    if (isSending) return;
     const form = new FormData();
     form.append("recipientId", recipientId);
     if (text.trim()) form.append("content", text.trim());
     files.forEach(f => form.append("media", f));
 
+    setIsSending(true);
     const res = await fetch(`https://mockingbird-backend.idrees.in/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
     });
-    if (res.ok) {
-      const saved = await res.json();
-      dispatch(addMessageToConversation({ conversationId: saved.conversationId, message: saved }));
-      setText("");
-      setFiles([]);
-      if (socket) socket.emit("direct_message", { toUserId: recipientId, conversationId: saved.conversationId, message: saved });
+    try {
+      if (res.ok) {
+        const saved = await res.json();
+        dispatch(addMessageToConversation({ conversationId: saved.conversationId, message: saved }));
+        setText("");
+        setFiles([]);
+        if (socket) socket.emit("direct_message", { toUserId: recipientId, conversationId: saved.conversationId, message: saved });
+      } else {
+        const error = await res.json().catch(() => ({}));
+        console.error("Failed to send message", res.status, error);
+      }
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -283,7 +293,7 @@ export default function ChatWindow({ conversationId, recipientId }) {
         WebkitBackdropFilter: 'saturate(180%) blur(18px)',
       }}>
         <input ref={fileInputRef} hidden type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files || []))} />
-        <IconButton onClick={() => fileInputRef.current?.click()}>
+        <IconButton onClick={() => fileInputRef.current?.click()} disabled={isSending || isRecording}>
           <AttachFile />
         </IconButton>
         {!isRecording ? (
@@ -344,7 +354,7 @@ export default function ChatWindow({ conversationId, recipientId }) {
           minRows={1}
           maxRows={4}
         />
-        <IconButton color="primary" onClick={onSend} disabled={isRecording}>
+        <IconButton color="primary" onClick={onSend} disabled={isRecording || isSending}>
           <Send />
         </IconButton>
       </Box>
@@ -355,6 +365,20 @@ export default function ChatWindow({ conversationId, recipientId }) {
           ))}
         </Box>
       )}
+      <Backdrop
+        open={isSending}
+        sx={{
+          position: 'absolute',
+          color: '#fff',
+          zIndex: theme.zIndex.drawer + 2,
+          backgroundColor: 'rgba(0,0,0,0.35)'
+        }}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <CircularProgress color="inherit" size={32} />
+          <Typography variant="body2">Sending…</Typography>
+        </Box>
+      </Backdrop>
     </Box>
   );
 }

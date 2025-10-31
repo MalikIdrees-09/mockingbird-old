@@ -37,7 +37,7 @@ const fileFilter = (req, file, cb) => {
   if (allAllowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error(`Unsupported file type: ${file.mimetype}. Supported: images, audio, and small clips only.`), false);
+    cb(new Error(`Unsupported file type: ${file.mimetype}. Supported: images, audio, clips, and video.`), false);
   }
 };
 
