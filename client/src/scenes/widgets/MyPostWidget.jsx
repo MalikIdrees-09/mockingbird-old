@@ -3,6 +3,7 @@ import {
   GifBoxOutlined,
   ImageOutlined,
   MicOutlined,
+  MovieCreationOutlined,
   MoreHorizOutlined,
   Close,
 } from "@mui/icons-material";
@@ -22,6 +23,8 @@ import {
   ListItemText,
   Tooltip,
   TextField,
+  Backdrop,
+  CircularProgress,
 } from "@mui/material";
 import FlexBetween from "components/FlexBetween";
 import Dropzone from "react-dropzone";
@@ -49,6 +52,7 @@ const MyPostWidget = ({ picturePath }) => {
   const isNonMobileScreens = useMediaQuery("(min-width: 1000px)");
   const mediumMain = palette.neutral.mediumMain;
   const medium = palette.neutral.medium;
+  const [isUploading, setIsUploading] = useState(false);
 
   // Extract URLs from text
   const extractUrls = (text) => {
@@ -177,7 +181,8 @@ const MyPostWidget = ({ picturePath }) => {
       },
       label: "Add Image Here",
       icon: <ImageOutlined />,
-      color: palette.primary.main
+      color: palette.primary.main,
+      maxSize: 10 * 1024 * 1024,
     },
     audio: {
       accept: {
@@ -189,7 +194,21 @@ const MyPostWidget = ({ picturePath }) => {
       },
       label: "Add Audio Here",
       icon: <MicOutlined />,
-      color: palette.accent?.main || palette.primary.dark
+      color: palette.accent?.main || palette.primary.dark,
+      maxSize: 50 * 1024 * 1024,
+    },
+    video: {
+      accept: {
+        'video/mp4': ['.mp4'],
+        'video/webm': ['.webm'],
+        'video/quicktime': ['.mov'],
+        'video/x-matroska': ['.mkv'],
+        'video/ogg': ['.ogv']
+      },
+      label: "Add Video Here",
+      icon: <MovieCreationOutlined />,
+      color: palette.secondary?.main || palette.primary.main,
+      maxSize: 200 * 1024 * 1024,
     },
     clip: {
       accept: {
@@ -198,11 +217,25 @@ const MyPostWidget = ({ picturePath }) => {
       },
       label: "Add Clip/GIF Here",
       icon: <GifBoxOutlined />,
-      color: palette.warning?.main || palette.secondary.dark
+      color: palette.warning?.main || palette.secondary.dark,
+      maxSize: 25 * 1024 * 1024,
     }
   };
 
+  const getMaxFileSizeLabel = (type) => {
+    const maxSize = mediaConfigs[type]?.maxSize;
+    if (!maxSize) return '';
+    if (maxSize >= 1024 * 1024) {
+      return `${Math.round(maxSize / (1024 * 1024))}MB`;
+    }
+    if (maxSize >= 1024) {
+      return `${Math.round(maxSize / 1024)}KB`;
+    }
+    return `${maxSize}B`;
+  };
+
   const handlePost = async () => {
+    if (isUploading) return;
     try {
       const formData = new FormData();
       formData.append("userId", _id);
@@ -225,6 +258,7 @@ const MyPostWidget = ({ picturePath }) => {
         formData.append("media", file);
       });
 
+      setIsUploading(true);
       const response = await fetch(`${API_BASE_URL}/posts`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -264,6 +298,8 @@ const MyPostWidget = ({ picturePath }) => {
     } catch (error) {
       console.error("Network error:", error);
       alert("Network error. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -484,7 +520,11 @@ const MyPostWidget = ({ picturePath }) => {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: isAudio ? palette.accent?.light + "20" || palette.primary.light + "20" : "transparent"
+                    backgroundColor: isAudio
+                      ? palette.accent?.light + "20" || palette.primary.light + "20"
+                      : isVideo
+                      ? (palette.secondary?.light || palette.primary.light) + "20"
+                      : "transparent"
                   }}
                 >
                   {isImage && (
@@ -564,9 +604,9 @@ const MyPostWidget = ({ picturePath }) => {
             <Box mt={2}>
               <Dropzone
                 accept={mediaConfigs[mediaType].accept}
-                multiple={true}
+                multiple={mediaType !== 'video'}
                 onDrop={handleFileUpload}
-                maxSize={mediaType === 'audio' ? 50 * 1024 * 1024 : 10 * 1024 * 1024} // 50MB for audio, 10MB for others
+                maxSize={mediaConfigs[mediaType].maxSize}
               >
                 {({ getRootProps, getInputProps, isDragActive }) => (
                   <Box
@@ -593,7 +633,7 @@ const MyPostWidget = ({ picturePath }) => {
                       {isDragActive ? `Drop ${mediaType} here` : `Add more ${mediaType}`}
                     </Typography>
                     <Typography variant="caption" color="textSecondary">
-                      Max 10 files, {mediaType === 'audio' ? '50MB' : '10MB'} each
+                      Max 10 files, {getMaxFileSizeLabel(mediaType)} each
                     </Typography>
                   </Box>
                 )}
@@ -683,6 +723,36 @@ const MyPostWidget = ({ picturePath }) => {
               </Typography>
             </FlexBetween>
 
+            {/* Enhanced Video Button */}
+            <FlexBetween 
+              gap="0.5rem"
+              onClick={() => handleMediaSelect('video')}
+              sx={{ 
+                cursor: "pointer",
+                padding: "0.75rem 1rem",
+                borderRadius: "12px",
+                backgroundColor: mediaType === 'video' ? (palette.secondary?.main + '15' || palette.primary.main + '15') : 'transparent',
+                border: `1px solid ${mediaType === 'video' ? (palette.secondary?.main + '30' || palette.primary.main + '30') : 'transparent'}`,
+                transition: 'all 0.3s ease',
+                '&:hover': { 
+                  backgroundColor: (palette.secondary?.main + '10' || palette.primary.main + '10'),
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(128, 0, 128, 0.2)'
+                }
+              }}
+            >
+              <MovieCreationOutlined sx={{ 
+                color: mediaType === 'video' ? (palette.secondary?.main || palette.primary.main) : mediumMain,
+                fontSize: '1.25rem'
+              }} />
+              <Typography 
+                color={mediaType === 'video' ? (palette.secondary?.main || palette.primary.main) : mediumMain}
+                sx={{ fontWeight: mediaType === 'video' ? 600 : 400, fontSize: '0.9rem' }}
+              >
+                Video
+              </Typography>
+            </FlexBetween>
+
             {/* Enhanced Audio Button */}
             <FlexBetween 
               gap="0.5rem"
@@ -754,6 +824,12 @@ const MyPostWidget = ({ picturePath }) => {
                 </ListItemIcon>
                 <ListItemText primary="Clip/GIF" />
               </MenuItem>
+              <MenuItem onClick={() => handleMobileMediaSelect('video')}>
+                <ListItemIcon>
+                  <MovieCreationOutlined sx={{ color: palette.secondary?.main || palette.primary.main }} />
+                </ListItemIcon>
+                <ListItemText primary="Video" />
+              </MenuItem>
               <MenuItem onClick={() => handleMobileMediaSelect('audio')}>
                 <ListItemIcon>
                   <MicOutlined sx={{ color: palette.accent?.main || palette.primary.dark }} />
@@ -766,7 +842,7 @@ const MyPostWidget = ({ picturePath }) => {
 
         {/* Enhanced Post Button */}
         <Button
-          disabled={!post && mediaFiles.length === 0}
+          disabled={(!post && mediaFiles.length === 0) || isUploading}
           onClick={handlePost}
           sx={{
             borderRadius: "25px",
@@ -813,10 +889,10 @@ const MyPostWidget = ({ picturePath }) => {
             }
           }}
         >
-          POST
+          {isUploading ? "Posting..." : "POST"}
         </Button>
       </FlexBetween>
-      
+
       {/* Profanity Warning Dialog */}
       <ProfanityWarningDialog
         open={profanityWarning.open}
@@ -824,6 +900,19 @@ const MyPostWidget = ({ picturePath }) => {
         message={profanityWarning.message}
         details={profanityWarning.details}
       />
+      <Backdrop
+        open={isUploading}
+        sx={{
+          color: '#fff',
+          zIndex: theme.zIndex.drawer + 1,
+          backdropFilter: 'blur(2px)',
+        }}
+      >
+        <Stack spacing={2} alignItems="center">
+          <CircularProgress color="inherit" />
+          <Typography variant="body2">Uploading your post…</Typography>
+        </Stack>
+      </Backdrop>
     </WidgetWrapper>
   );
 };

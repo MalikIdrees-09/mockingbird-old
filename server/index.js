@@ -130,7 +130,18 @@ app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
 app.use(morgan("common"));
 app.use(bodyParser.json({ limit: "30mb", extended: true }));
 app.use(bodyParser.urlencoded({ limit: "30mb", extended: true }));
-app.use(cors());
+const corsEnv = process.env.CLIENT_URL || "*";
+const corsOrigins = corsEnv === "*"
+  ? "*"
+  : corsEnv.split(",").map((o) => o.trim()).filter(Boolean);
+const corsOptions = {
+  origin: corsOrigins,
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: corsOrigins !== "*",
+};
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use("/assets", express.static(path.join(__dirname, "public/assets")));
 
 /* FILE STORAGE */
@@ -147,24 +158,25 @@ const storage = multer.diskStorage({
   },
 });
 
-// File filter for different media types (excluding videos to save storage)
 const fileFilter = (req, file, cb) => {
   const allowedTypes = {
     image: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
     audio: ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/flac', 'audio/mp4', 'audio/x-m4a', 'audio/webm'],
-    clip: ['image/gif', 'video/webm'] // Only small clips, no large video files
+    video: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'video/ogg'],
+    clip: ['image/gif', 'video/webm']
   };
 
   const allAllowedTypes = [
     ...allowedTypes.image,
     ...allowedTypes.audio,
+    ...allowedTypes.video,
     ...allowedTypes.clip
   ];
 
   if (allAllowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error(`Unsupported file type: ${file.mimetype}. Supported: images, audio, and small clips only.`), false);
+    cb(new Error(`Unsupported file type: ${file.mimetype}. Supported: images, audio, clips, and video.`), false);
   }
 };
 
@@ -172,7 +184,8 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit (no large videos)
+    fileSize: 200 * 1024 * 1024, // 200MB limit to support larger video uploads
+    files: 10,
   }
 });
 

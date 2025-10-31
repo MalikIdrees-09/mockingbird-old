@@ -23,12 +23,14 @@ const fileFilter = (req, file, cb) => {
   const allowedTypes = {
     image: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
     audio: ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/flac', 'audio/mp4', 'audio/x-m4a', 'audio/webm'],
+    video: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'video/ogg'],
     clip: ['image/gif', 'video/webm']
   };
 
   const allAllowedTypes = [
     ...allowedTypes.image,
     ...allowedTypes.audio,
+    ...allowedTypes.video,
     ...allowedTypes.clip
   ];
 
@@ -43,7 +45,8 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 200 * 1024 * 1024, // 200MB per file to support larger video uploads
+    files: 10,
   }
 });
 
