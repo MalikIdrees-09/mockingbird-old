@@ -153,7 +153,7 @@ const UserWidget = ({ userId, picturePath, allowProfileEdits = true }) => {
             textOverflow: "ellipsis",
             whiteSpace: "nowrap"
           }}>
-            {bio || "No bio yet"}
+            {bio || " "}
           </Typography>
           {allowProfileEdits && isOwnProfile && (
             <Tooltip title="Edit bio">

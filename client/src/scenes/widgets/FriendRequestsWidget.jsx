@@ -86,7 +86,7 @@ const FriendRequestsWidget = ({ userId }) => {
               key={request._id}
               friendId={request._id}
               name={`${request.firstName} ${request.lastName}`}
-              subtitle={request.bio ? (request.bio.length > 100 ? `${request.bio.substring(0, 100)}...` : request.bio) : "No bio yet"}
+              subtitle={request.bio ? (request.bio.length > 100 ? `${request.bio.substring(0, 100)}...` : request.bio) : " "}
               userPicturePath={request.picturePath}
               friendStatus="request_received"
               onFriendAction={handleFriendAction}

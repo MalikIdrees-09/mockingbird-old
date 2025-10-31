@@ -240,7 +240,7 @@ const FriendListWidget = ({ userId }) => {
                       key={user._id}
                       friendId={user._id}
                       name={`${user.firstName} ${user.lastName}`}
-                      subtitle={user.bio ? (user.bio.length > 100 ? `${user.bio.substring(0, 100)}...` : user.bio) : "No bio yet"}
+                      subtitle={user.bio ? (user.bio.length > 100 ? `${user.bio.substring(0, 100)}...` : user.bio) : " "}
                       userPicturePath={user.picturePath}
                       friendStatus={getFriendStatus(user._id)}
                       onFriendAction={handleFriendAction}
@@ -280,7 +280,7 @@ const FriendListWidget = ({ userId }) => {
                   key={friend._id}
                   friendId={friend._id}
                   name={`${friend.firstName || 'Unknown'} ${friend.lastName || 'User'}`}
-                  subtitle={friend.bio ? (friend.bio.length > 100 ? `${friend.bio.substring(0, 100)}...` : friend.bio) : "No bio yet"}
+                  subtitle={friend.bio ? (friend.bio.length > 100 ? `${friend.bio.substring(0, 100)}...` : friend.bio) : " "}
                   userPicturePath={friend.picturePath}
                   friendStatus="friends"
                 />

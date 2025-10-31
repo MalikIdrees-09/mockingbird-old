@@ -36,11 +36,20 @@ const Friend = ({
   const { _id } = useSelector((state) => state.user);
   const token = useSelector((state) => state.token);
 
-  const { palette } = useTheme();
+  const theme = useTheme();
+  const { palette } = theme;
   const primaryLight = palette.primary.light;
   const primaryDark = palette.primary.dark;
   const main = palette.neutral.main;
   const medium = palette.neutral.medium;
+  const isDarkMode = theme.palette.mode === 'dark';
+
+  const containerGradient = isDarkMode
+    ? 'linear-gradient(135deg, rgba(25, 28, 38, 0.95), rgba(14, 17, 26, 0.9))'
+    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 255, 0.94))';
+  const containerBorder = isDarkMode ? 'rgba(148, 163, 184, 0.18)' : 'rgba(15, 23, 42, 0.08)';
+  const containerShadow = isDarkMode ? '0 16px 36px rgba(5, 12, 28, 0.55)' : '0 12px 28px rgba(15, 23, 42, 0.15)';
+  const containerHoverShadow = isDarkMode ? '0 20px 48px rgba(5, 12, 28, 0.68)' : '0 16px 36px rgba(15, 23, 42, 0.22)';
 
   const normalizedName = name?.toLowerCase() || "";
   const isProtectedNewsAccount =
@@ -181,7 +190,23 @@ const Friend = ({
   };
 
   return (
-    <FlexBetween>
+    <FlexBetween
+      sx={{
+        position: 'relative',
+        gap: '1rem',
+        padding: '0.85rem 1.1rem',
+        borderRadius: '16px',
+        background: containerGradient,
+        border: `1px solid ${containerBorder}`,
+        boxShadow: containerShadow,
+        transition: 'transform 0.2s ease, box-shadow 0.25s ease',
+        backdropFilter: isDarkMode ? 'saturate(160%) blur(12px)' : 'none',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: containerHoverShadow,
+        },
+      }}
+    >
       <FlexBetween gap="1rem">
         <UserImage image={userPicturePath} size={size} name={name} />
         <Box
@@ -206,7 +231,7 @@ const Friend = ({
               <NewsBadge size="small" />
             )}
           </Typography>
-          <Typography color={medium} fontSize="0.75rem">
+          <Typography color={isDarkMode ? 'rgba(226, 232, 240, 0.7)' : 'rgba(71, 85, 105, 0.75)'} fontSize="0.8rem">
             {subtitle}
           </Typography>
         </Box>

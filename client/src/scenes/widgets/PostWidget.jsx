@@ -60,7 +60,6 @@ const PostWidget = ({
   name,
   description,
   location,
-  bio,
   picturePath,
   userPicturePath,
   likes,
@@ -764,8 +763,8 @@ const PostWidget = ({
           '&:hover': {
             transform: 'translateY(-4px)',
             boxShadow: theme.palette.mode === 'dark'
-              ? '0 12px 40px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.4)'
-              : '0 12px 40px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.1)',
+              ? '0 20px 48px rgba(5, 12, 28, 0.68)'
+              : '0 16px 36px rgba(15, 23, 42, 0.22)',
           }
         }}
       >
@@ -800,7 +799,7 @@ const PostWidget = ({
           <Friend
             friendId={postUserId}
             name={name}
-            subtitle={bio ? (bio.length > 100 ? `${bio.substring(0, 100)}...` : bio) : "No bio yet"}
+            subtitle={location || ""}
             userPicturePath={postUserId === loggedInUserId ? loggedInUserPicturePath : userPicturePath}
             isAdmin={isAdmin}
             size="60px"
@@ -860,7 +859,6 @@ const PostWidget = ({
                 name={ancestorName}
                 description={ancestorPost.description}
                 location={ancestorPost.location}
-                bio={ancestorPost.userId?.bio}
                 picturePath={ancestorPost.picturePath}
                 userPicturePath={ancestorPost.userPicturePath || ancestorPost.userId?.picturePath || ""}
                 likes={ancestorPost.likes || {}}
