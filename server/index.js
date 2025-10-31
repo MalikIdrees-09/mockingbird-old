@@ -39,6 +39,8 @@ const io = new SocketIOServer(httpServer, {
   },
 });
 
+app.set("io", io);
+
 // In-memory map of userId -> Set of socket ids
 const userIdToSockets = new Map();
 
@@ -61,6 +63,7 @@ io.on("connection", (socket) => {
   if (userId) {
     if (!userIdToSockets.has(userId)) userIdToSockets.set(userId, new Set());
     userIdToSockets.get(userId).add(socket.id);
+    socket.join(userId);
   }
 
   socket.on("typing", ({ toUserId, conversationId, isTyping }) => {

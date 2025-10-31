@@ -5,6 +5,7 @@ import User from '../models/User.js';
 let cronJob = null; // Al Jazeera default
 let bbcCron = null;
 let nasaCron = null;
+let alifCron = null;
 let lastSyncResult = null;
 
 export const startRSSSync = async () => {
@@ -64,7 +65,7 @@ export const startRSSSync = async () => {
     console.error('Failed to start BBC cron:', e.message);
   }
 
-  // Start NASA cron (every 5 minutes)
+  // Start NASA cron (every 12 minutes)
   try {
     const nasaUser = await User.findOne({ email: 'news@nasa.gov' });
     if (nasaUser && !nasaCron) {
@@ -84,6 +85,27 @@ export const startRSSSync = async () => {
   } catch (e) {
     console.error('Failed to start NASA cron:', e.message);
   }
+
+  // Start Alif Global School cron (every 14 minutes, no dedup)
+  try {
+    const alifUser = await User.findOne({ email: 'alif@alifglobalschool.com' });
+    if (alifUser && !alifCron) {
+      const interval = 14; // minutes
+      console.log(`Starting Alif Global School RSS sync cron job (every ${interval} minutes)`);
+      alifCron = cron.schedule(`*/${interval} * * * *`, async () => {
+        console.log(`Alif Global School RSS sync triggered at ${new Date().toISOString()}`);
+        await syncRSSFeedForSource({
+          name: 'Alif Global School',
+          feedUrl: 'https://rss.app/feeds/loPMM4zwicvGnKbJ.xml',
+          userId: alifUser._id,
+          maxArticlesPerSync: 1,
+        });
+      });
+      console.log(`Alif Global School RSS sync cron job started successfully`);
+    }
+  } catch (e) {
+    console.error('Failed to start Alif Global School cron:', e.message);
+  }
 };
 
 export const stopRSSSync = () => {
@@ -94,6 +116,7 @@ export const stopRSSSync = () => {
   }
   if (bbcCron) { bbcCron.stop(); bbcCron = null; console.log('BBC RSS sync cron job stopped'); }
   if (nasaCron) { nasaCron.stop(); nasaCron = null; console.log('NASA RSS sync cron job stopped'); }
+  if (alifCron) { alifCron.stop(); alifCron = null; console.log('Alif Global School RSS sync cron job stopped'); }
 };
 
 export const forceRSSSync = async () => {
@@ -127,5 +150,6 @@ export const getRSSSyncStatus = () => {
     },
     bbcRunning: !!bbcCron,
     nasaRunning: !!nasaCron,
+    alifRunning: !!alifCron,
   };
 };

@@ -136,13 +136,37 @@ export const authSlice = createSlice({
     },
     addMessageToConversation: (state, action) => {
       const { conversationId, message } = action.payload;
-      if (!state.messagesByConversation[conversationId]) state.messagesByConversation[conversationId] = [];
-      state.messagesByConversation[conversationId].push(message);
+      if (!state.messagesByConversation[conversationId]) {
+        state.messagesByConversation[conversationId] = [];
+      }
+      const existingIndex = state.messagesByConversation[conversationId].findIndex(
+        (m) => m && message && m._id === message._id
+      );
+      if (existingIndex >= 0) {
+        state.messagesByConversation[conversationId][existingIndex] = {
+          ...state.messagesByConversation[conversationId][existingIndex],
+          ...message,
+        };
+      } else {
+        state.messagesByConversation[conversationId].push(message);
+      }
     },
     setTypingForConversation: (state, action) => {
       const { conversationId, userId, isTyping } = action.payload;
       if (!state.typingByConversation[conversationId]) state.typingByConversation[conversationId] = {};
       state.typingByConversation[conversationId][userId] = !!isTyping;
+    },
+    markMessageDeleted: (state, action) => {
+      const { conversationId, messageId } = action.payload || {};
+      if (!conversationId || !messageId) return;
+      const messages = state.messagesByConversation[conversationId];
+      if (!Array.isArray(messages)) return;
+      const target = messages.find((m) => m && m._id === messageId);
+      if (!target) return;
+      target.isDeleted = true;
+      target.content = "";
+      target.media = [];
+      target.mediaTypes = [];
     },
     markConversationRead: (state, action) => {
       const { conversationId } = action.payload;
@@ -226,6 +250,7 @@ export const {
   setMessagesForConversation,
   addMessageToConversation,
   setTypingForConversation,
+  markMessageDeleted,
   markConversationRead,
 } = authSlice.actions;
 export default authSlice.reducer;

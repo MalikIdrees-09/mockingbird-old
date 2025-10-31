@@ -165,12 +165,14 @@ export const syncRSSFeedForSource = async ({
   userEmail,
   userId,
   maxArticlesPerSync = 1,
+  disableDedup = false,
 } = {}) => {
   try {
     console.log(`🚀 Starting RSS sync for ${name || 'source'} at ${new Date().toISOString()}`);
 
     const normalizedSourceName = name || 'source';
     const isNASAFeed = normalizedSourceName.toLowerCase() === 'nasa';
+    const dedupeEnabled = !disableDedup;
 
     // Fetch RSS feed with retry logic
     let feed;
@@ -205,14 +207,21 @@ export const syncRSSFeedForSource = async ({
     }
 
     // Get already processed articles to avoid duplicates
-    const processedUrls = await getProcessedArticles();
-    console.log(`📋 Found ${processedUrls.length} already processed articles`);
-    const processedUrlSet = new Set(processedUrls.map(url => url.trim()));
+    let processedUrls = [];
+    let processedUrlSet = new Set();
+
+    if (dedupeEnabled) {
+      processedUrls = await getProcessedArticles();
+      console.log(`📋 Found ${processedUrls.length} already processed articles`);
+      processedUrlSet = new Set(processedUrls.map(url => url.trim()));
+    } else {
+      console.log(`🚫 Deduplication disabled for ${normalizedSourceName}`);
+    }
 
     let existingGuidSet = new Set();
     let existingLinkSet = new Set();
 
-    if (isNASAFeed && userId) {
+    if (dedupeEnabled && isNASAFeed && userId) {
       const nasaExistingPosts = await Post.find({ userId: String(userId) })
         .select('rssGuid rssLink')
         .lean();
@@ -233,24 +242,25 @@ export const syncRSSFeedForSource = async ({
     }
 
     // Filter out already processed articles
-    const newArticles = articles.filter(article =>
-      {
-        const link = (article.link || '').trim();
-        if (link && processedUrlSet.has(link)) {
-          return false;
-        }
-
-        if (isNASAFeed) {
-          const guid = (article.guid || '').trim();
-
-          if ((guid && existingGuidSet.has(guid)) || (link && existingLinkSet.has(link))) {
-            console.log(`🛰️ NASA dedupe: skipping duplicate article ${article.title}`);
+    const newArticles = (dedupeEnabled
+      ? articles.filter(article => {
+          const link = (article.link || '').trim();
+          if (link && processedUrlSet.has(link)) {
             return false;
           }
-        }
 
-        return true;
-      }
+          if (isNASAFeed) {
+            const guid = (article.guid || '').trim();
+
+            if ((guid && existingGuidSet.has(guid)) || (link && existingLinkSet.has(link))) {
+              console.log(`🛰️ NASA dedupe: skipping duplicate article ${article.title}`);
+              return false;
+            }
+          }
+
+          return true;
+        })
+      : articles
     ).slice(0, maxArticlesPerSync);
 
     console.log(`🆕 Found ${newArticles.length} new articles to process`);
@@ -282,7 +292,7 @@ export const syncRSSFeedForSource = async ({
       postsCreated,
       errors,
       totalArticles: articles.length,
-      processedArticles: processedUrls.length,
+      processedArticles: dedupeEnabled ? processedUrls.length : 0,
     };
 
   } catch (error) {

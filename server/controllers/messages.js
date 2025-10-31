@@ -1,7 +1,5 @@
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
-import { userIdToSockets } from "../index.js";
-import { ioInstance } from "../index.js";
 import User from "../models/User.js";
 import path from "path";
 import { createNotification } from "./notifications.js";
