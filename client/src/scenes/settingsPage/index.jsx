@@ -34,13 +34,16 @@ import {
   Error,
   Info,
   Palette,
+  DarkMode,
+  LightMode,
+  Logout,
 } from "@mui/icons-material";
-import { updateUser, setBackgroundTheme, clearBackgroundTheme } from "state";
+import { updateUser, setBackgroundTheme, clearBackgroundTheme, setMode, setLogout } from "state";
+
 import Navbar from "scenes/navbar";
 import WidgetWrapper from "components/WidgetWrapper";
 import ChangeProfilePictureDialog from "components/ChangeProfilePictureDialog";
 import { useNavigate } from "react-router-dom";
-import { setLogout } from "state";
 
 const Settings = () => {
   const { palette } = useTheme();
@@ -555,10 +558,35 @@ const Settings = () => {
                     fontStyle: "italic",
                   }}
                 >
-                  Manage your account settings
+                  Manage your account information, security, and personalization settings
                 </Typography>
               </Box>
-
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  justifyContent: { xs: "center", md: "flex-end" },
+                  alignItems: "center",
+                  gap: 1,
+                  mb: 3,
+                }}
+              >
+                <Button
+                  variant="outlined"
+                  startIcon={palette.mode === "dark" ? <LightMode fontSize="small" /> : <DarkMode fontSize="small" />}
+                  onClick={() => dispatch(setMode())}
+                >
+                  {palette.mode === "dark" ? "Light Mode" : "Dark Mode"}
+                </Button>
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={<Logout fontSize="small" />}
+                  onClick={() => dispatch(setLogout())}
+                >
+                  Log Out
+                </Button>
+              </Box>
               {/* Account Overview Card */}
               <Card
                 sx={{

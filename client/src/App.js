@@ -9,7 +9,6 @@ import { API_BASE_URL } from "./utils/api";
 import SplashScreen from "./components/SplashScreen";
 import SocketProvider from "./components/Chat/SocketProvider";
 import MobileBottomNav from "./components/MobileBottomNav";
-import SwipeNavigator from "./components/SwipeNavigator";
 
 // Lazy load pages for better performance
 const HomePage = lazy(() => import("scenes/homePage"));
@@ -181,7 +180,6 @@ function App() {
             </Suspense>
             </SocketProvider>
             <MobileBottomNav />
-            <SwipeNavigator />
           </ThemeProvider>
         </BrowserRouter>
       )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BottomNavigation, BottomNavigationAction, Paper, useMediaQuery } from "@mui/material";
+import { BottomNavigation, BottomNavigationAction, Paper, useMediaQuery, Box } from "@mui/material";
 import { Home, Search, Chat, AccountCircle } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -25,10 +25,19 @@ export default function MobileBottomNav() {
   if (location.pathname === "/") return null; // hide on login
 
   return (
-    <Paper
-      elevation={8}
-      sx={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 1200 }}
-    >
+    <>
+      <Box sx={{ height: "calc(env(safe-area-inset-bottom) + 64px)" }} />
+      <Paper
+        elevation={8}
+        sx={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1200,
+          pb: "env(safe-area-inset-bottom)",
+        }}
+      >
       <BottomNavigation
         value={value}
         onChange={(e, newValue) => {
@@ -42,7 +51,8 @@ export default function MobileBottomNav() {
           <BottomNavigationAction key={item.path} label={item.label} icon={item.icon} />
         ))}
       </BottomNavigation>
-    </Paper>
+      </Paper>
+    </>
   );
 }
 
