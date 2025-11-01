@@ -38,6 +38,15 @@ const UserImage = ({ image, size = "60px", name = "" }) => {
 
   const resolvedLabel = imageUrl || image || "(no image)";
 
+  const initials = (name || "")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("")
+    .trim();
+  const fallbackLabel = initials || "?";
+
   return (
     <Box
       width={size}
@@ -70,15 +79,13 @@ const UserImage = ({ image, size = "60px", name = "" }) => {
       ) : (
         <span
           style={{
-            fontSize: "0.55rem",
+            fontSize: "calc(0.4 * " + size + ")",
             color: "#555",
-            padding: "0 4px",
+            fontWeight: 600,
             textAlign: "center",
-            wordBreak: "break-all",
-            lineHeight: 1.2,
           }}
         >
-          {loadError ? "Image load failed" : "No image URL"}
+          {fallbackLabel}
         </span>
       )}
     </Box>
