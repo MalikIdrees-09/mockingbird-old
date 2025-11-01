@@ -217,6 +217,18 @@ const PostWidget = ({
   const pinIconColor = theme.palette.mode === 'dark'
     ? (palette.neutral?.light || palette.text.secondary)
     : (palette.neutral?.dark || palette.text.primary);
+  const pinBadgeBackground = theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, #DAA520, #B8941F)'
+    : 'linear-gradient(135deg, #FFE082, #FFB300)';
+  const pinBadgeShadow = theme.palette.mode === 'dark'
+    ? '0 4px 12px rgba(218,165,32,0.4)'
+    : '0 4px 12px rgba(255,193,7,0.35)';
+  const pinBadgeIconColor = theme.palette.mode === 'dark'
+    ? (palette.common?.white || '#fff')
+    : (palette.neutral?.dark || palette.text.primary);
+  const pinBadgeBorderColor = theme.palette.mode === 'dark'
+    ? 'rgba(255,255,255,0.18)'
+    : 'rgba(0,0,0,0.08)';
 
   const friendStatus = useMemo(() => {
     if (!normalizedPostUserId) return 'none';
@@ -778,8 +790,8 @@ const PostWidget = ({
                 position: "absolute",
                 top: -8,
                 right: -8,
-                bgcolor: 'linear-gradient(135deg, #DAA520, #B8941F)',
-                color: "white",
+                background: pinBadgeBackground,
+                color: pinBadgeIconColor,
                 borderRadius: "50%",
                 width: 32,
                 height: 32,
@@ -787,12 +799,17 @@ const PostWidget = ({
                 alignItems: "center",
                 justifyContent: "center",
                 zIndex: 2,
-                boxShadow: '0 4px 12px rgba(218,165,32,0.4)',
+                boxShadow: pinBadgeShadow,
+                border: `1px solid ${pinBadgeBorderColor}`,
                 animation: 'pulse 2s infinite',
                 '@keyframes pulse': {
-                  '0%': { boxShadow: '0 4px 12px rgba(218,165,32,0.4)' },
-                  '50%': { boxShadow: '0 4px 20px rgba(218,165,32,0.6)' },
-                  '100%': { boxShadow: '0 4px 12px rgba(218,165,32,0.4)' }
+                  '0%': { boxShadow: pinBadgeShadow },
+                  '50%': {
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 4px 20px rgba(218,165,32,0.6)'
+                      : '0 4px 18px rgba(255,193,7,0.45)'
+                  },
+                  '100%': { boxShadow: pinBadgeShadow }
                 }
               }}
             >
