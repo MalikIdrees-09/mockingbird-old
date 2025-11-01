@@ -16,7 +16,7 @@ export const startRSSSync = async () => {
 
   console.log(`Starting RSS sync cron job (every ${RSS_CONFIG.SYNC_INTERVAL_MINUTES} minutes)`);
 
-  // Run every 10 minutes: '*/10 * * * *'
+  // Run every 30 minutes by default (configurable via RSS_CONFIG)
   cronJob = cron.schedule(`*/${RSS_CONFIG.SYNC_INTERVAL_MINUTES} * * * *`, async () => {
     console.log(`RSS sync triggered at ${new Date().toISOString()}`);
 

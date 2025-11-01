@@ -18,7 +18,7 @@ export const RSS_CONFIG = {
   FEED_URL: 'https://www.aljazeera.com/xml/rss/all.xml',
   AL_JAZEERA_USER_ID: null,
   MAX_ARTICLES_PER_SYNC: 1,
-  SYNC_INTERVAL_MINUTES: 10,
+  SYNC_INTERVAL_MINUTES: 30,
 };
 
 export const setAlJazeeraUserId = (userId) => {

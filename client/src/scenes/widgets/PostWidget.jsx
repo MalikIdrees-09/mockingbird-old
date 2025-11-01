@@ -214,6 +214,9 @@ const PostWidget = ({
   const { palette } = useTheme();
   const main = palette.neutral.main;
   const primary = palette.primary.main;
+  const pinIconColor = theme.palette.mode === 'dark'
+    ? (palette.neutral?.light || palette.text.secondary)
+    : (palette.neutral?.dark || palette.text.primary);
 
   const friendStatus = useMemo(() => {
     if (!normalizedPostUserId) return 'none';
@@ -269,7 +272,7 @@ const PostWidget = ({
       );
     }
 
-    // Fallback to single media (old format for backward compatibility)
+    // Fallback to single media (old format)
     const currentMediaPath = mediaPath;
     const currentMediaType = mediaType;
     
@@ -437,7 +440,7 @@ const PostWidget = ({
   };
 
   const handleReactionChange = async (reactionType) => {
-    console.log("🔄 Reacting to post:", postId, "with reaction:", reactionType);
+    console.log(" Reacting to post:", postId, "with reaction:", reactionType);
     
     const response = await fetch(`${API_BASE_URL}/posts/${postId}/react`, {
       method: "PATCH",
@@ -453,18 +456,18 @@ const PostWidget = ({
     if (handledResponse === null) return; // User was logged out
 
     if (!handledResponse.ok) {
-      console.error("❌ Reaction failed:", handledResponse.status, await handledResponse.text());
+      console.error(" Reaction failed:", handledResponse.status, await handledResponse.text());
       return;
     }
 
     const updatedPost = await handledResponse.json();
-    console.log("✅ Reaction successful:", updatedPost);
-    console.log("🔄 Updating post in state:", updatedPost._id);
+    console.log(" Reaction successful:", updatedPost);
+    console.log(" Updating post in state:", updatedPost._id);
     dispatch(setPost({ post: updatedPost }));
     
     // Force a re-render by updating local state if needed
     setTimeout(() => {
-      console.log("🔄 Post state updated, checking reaction data:", updatedPost.reactionCounts, updatedPost.userReaction);
+      console.log(" Post state updated, checking reaction data:", updatedPost.reactionCounts, updatedPost.userReaction);
     }, 100);
   };
 
@@ -806,6 +809,7 @@ const PostWidget = ({
             friendStatus={friendStatus}
             onFriendAction={handleFriendAction}
             showAcceptReject={false}
+            showAddFriend={false}
           />
         </Box>
 
@@ -1353,11 +1357,12 @@ const PostWidget = ({
                   sx={{ 
                     ml: 1, 
                     padding: "0.75rem",
+                    color: pinned ? palette.primary.main : pinIconColor,
                     "&:hover": { backgroundColor: "rgba(0,0,0,0.04)" }
                   }}
                 >
                   {pinned ? (
-                    <PushPin sx={{ color: primary, fontSize: "1.5rem" }} />
+                    <PushPin sx={{ fontSize: "1.5rem" }} />
                   ) : (
                     <PushPinOutlined sx={{ fontSize: "1.5rem" }} />
                   )}

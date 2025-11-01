@@ -145,7 +145,47 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
-app.use("/assets", express.static(path.join(__dirname, "public/assets")));
+
+const assetsPath = path.join(__dirname, "public/assets");
+const resolveAssetOrigin = (requestOrigin) => {
+  if (corsOrigins === "*") {
+    return "*";
+  }
+  if (!requestOrigin) {
+    return corsOrigins[0] || "*";
+  }
+
+  const normalizedOrigin = requestOrigin.toLowerCase();
+  const matchedOrigin = corsOrigins.find(
+    (origin) => origin.toLowerCase() === normalizedOrigin
+  );
+
+  return matchedOrigin || corsOrigins[0] || "*";
+};
+
+app.use(
+  "/assets",
+  cors(corsOptions),
+  express.static(assetsPath, {
+    setHeaders: (res) => {
+      const origin = resolveAssetOrigin(res.req.headers.origin);
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      if (origin !== "*") {
+        res.setHeader("Vary", "Origin");
+      }
+      res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Origin, Range, Accept, Content-Type, Authorization"
+      );
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "Content-Length, Content-Range, Accept-Ranges"
+      );
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    },
+  })
+);
 
 /* FILE STORAGE */
 const storage = multer.diskStorage({
@@ -207,7 +247,7 @@ app.use("/messages", messagesRoutes);
 
 /* KEEP-ALIVE ENDPOINT FOR CRON JOB */
 app.get("/keep-alive", (req, res) => {
-  console.log(`🟢 Keep-alive ping at ${new Date().toISOString()}`);
+  console.log(`Keep-alive ping at ${new Date().toISOString()}`);
   res.status(200).json({ 
     status: "alive", 
     timestamp: new Date().toISOString(), 
@@ -245,16 +285,16 @@ mongoose
 
       if (alJazeeraUser) {
         setAlJazeeraUserId(alJazeeraUser._id);
-        console.log(`📰 Al Jazeera user ready: ${alJazeeraUser._id}`);
+        console.log(`Al Jazeera user ready: ${alJazeeraUser._id}`);
 
         // Start RSS sync cron job
         startRSSSync();
-        console.log(`✅ RSS sync system initialized successfully`);
+        console.log(`RSS sync system initialized successfully`);
       } else {
-        console.error(`❌ Failed to initialize Al Jazeera user!`);
+        console.error(`Failed to initialize Al Jazeera user!`);
       }
     } catch (error) {
-      console.error(`❌ Failed to initialize RSS sync:`, error.message);
+      console.error(`Failed to initialize RSS sync:`, error.message);
     }
 
     /* ADD DATA ONE TIME - Now handled by initialization script */
@@ -267,15 +307,15 @@ mongoose
       try {
         const response = await fetch(`http://localhost:${PORT}/keep-alive`);
         if (response.ok) {
-          console.log('🔄 Keep-alive cron job executed successfully');
+          console.log('Keep-alive cron job executed successfully');
         } else {
-          console.error('❌ Keep-alive cron job failed:', response.status);
+          console.error('Keep-alive cron job failed:', response.status);
         }
       } catch (error) {
-        console.error('❌ Keep-alive cron job error:', error.message);
+        console.error('Keep-alive cron job error:', error.message);
       }
     });
-    console.log('⏰ Keep-alive cron job scheduled to run every 10 minutes');
+    console.log('Keep-alive cron job scheduled to run every 10 minutes');
   })
   .catch((error) => console.log(`${error} did not connect`));
 
